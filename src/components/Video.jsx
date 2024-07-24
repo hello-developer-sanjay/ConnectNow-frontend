@@ -57,10 +57,12 @@ const Video = ({ localStream, remoteStream }) => {
   const localVideoRef = useRef();
   const remoteVideoRef = useRef();
   const [isFrontCamera, setIsFrontCamera] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.muted = true; // Mute local video audio
     }
   }, [localStream]);
 
@@ -89,6 +91,14 @@ const Video = ({ localStream, remoteStream }) => {
     }
   };
 
+  const toggleMute = () => {
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      audioTracks[0].enabled = !audioTracks[0].enabled;
+      setIsMuted(!audioTracks[0].enabled);
+    }
+  };
+
   const enterFullScreen = (ref) => {
     if (ref.current) {
       if (ref.current.requestFullscreen) {
@@ -109,6 +119,9 @@ const Video = ({ localStream, remoteStream }) => {
       <StyledVideo ref={remoteVideoRef} autoPlay playsInline onClick={() => enterFullScreen(remoteVideoRef)} />
       <ControlButton onClick={toggleCamera}>
         Switch to {isFrontCamera ? 'Rear' : 'Front'} Camera
+      </ControlButton>
+      <ControlButton onClick={toggleMute}>
+        {isMuted ? 'Unmute' : 'Mute'}
       </ControlButton>
     </VideoContainer>
   );
