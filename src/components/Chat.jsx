@@ -375,13 +375,13 @@ const Chat = () => {
   };
 
   const playTune = () => {
-    const audio = new Audio('assets/incoming_call.mp3');
+    const audio = new Audio('/src/assets/discord.mp3');
     audio.loop = true;
     audio.play();
   };
 
   const stopTune = () => {
-    const audio = new Audio('assets/incoming_call.mp3');
+    const audio = new Audio('/src/assets/discord.mp3');
     audio.loop = true;
     audio.pause();
     audio.currentTime = 0;
