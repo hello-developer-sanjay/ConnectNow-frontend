@@ -1,4 +1,4 @@
-import React from 'react';
+import { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
@@ -38,17 +38,29 @@ const CallStatus = styled.p`
   text-align: center;
 `;
 
-const Video = ({ localStream, remoteStream, isMuted, isVideoOff, muteAudio, toggleVideo, disconnectCall, callStatus }) => {
+const Video = ({ localStream, remoteStream, isMuted, isVideoOff, muteUnmuteAudio, turnOnOffVideo, resetCall, callStatus }) => {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [localStream, remoteStream]);
+
   return (
     <VideoContainer>
       <CallStatus connected={callStatus === 'Connected'}>
         {callStatus || 'Not connected'}
       </CallStatus>
-      <VideoElement ref={(video) => { if (video) video.srcObject = localStream }} autoPlay muted />
-      <VideoElement ref={(video) => { if (video) video.srcObject = remoteStream }} autoPlay />
-      <Button onClick={muteAudio}>{isMuted ? 'Unmute' : 'Mute'}</Button>
-      <Button onClick={toggleVideo}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
-      <Button onClick={disconnectCall}>Disconnect</Button>
+      <VideoElement ref={localVideoRef} autoPlay muted={isMuted} />
+      <VideoElement ref={remoteVideoRef} autoPlay />
+      <Button onClick={muteUnmuteAudio}>{isMuted ? 'Unmute' : 'Mute'}</Button>
+      <Button onClick={turnOnOffVideo}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
+      <Button onClick={resetCall}>Disconnect</Button>
     </VideoContainer>
   );
 };
