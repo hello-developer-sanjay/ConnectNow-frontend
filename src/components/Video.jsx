@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
@@ -31,25 +31,34 @@ const ControlButton = styled.button`
 `;
 
 const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, toggleVideo }) => {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
+  // Apply local stream to local video element
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  // Apply remote stream to remote video element
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
   return (
     <VideoContainer>
       <VideoElement
         playsInline
-        muted
-        ref={(video) => {
-          if (video && localStream) {
-            video.srcObject = localStream;
-          }
-        }}
+        muted={isMuted} // Apply mute based on state
+        ref={localVideoRef}
         autoPlay
       />
       <VideoElement
         playsInline
-        ref={(video) => {
-          if (video && remoteStream) {
-            video.srcObject = remoteStream;
-          }
-        }}
+        ref={remoteVideoRef}
         autoPlay
       />
       <ControlButton onClick={toggleMute}>
