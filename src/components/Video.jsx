@@ -34,25 +34,28 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-  // Apply local stream to local video element
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
-  // Apply remote stream to remote video element
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
   return (
     <VideoContainer>
       <VideoElement
         playsInline
-        muted={isMuted} // Apply mute based on state
         ref={localVideoRef}
         autoPlay
       />
