@@ -263,22 +263,21 @@ const Chat = () => {
   };
 
   const startCall = async (callee) => {
-    if (socket && peerConnection && localStream) {
-      for (const track of localStream.getTracks()) {
-        peerConnection.addTrack(track, localStream);
-      }
+    if (socket && localStream) {
+      const newPeerConnection = createPeerConnection();
+      setPeerConnection(newPeerConnection);
 
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
+      localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
+
+      const offer = await newPeerConnection.createOffer();
+      await newPeerConnection.setLocalDescription(new RTCSessionDescription(offer));
       socket.emit('videoOffer', { room, offer, callee, caller: userInfo._id });
     }
   };
 
   const acceptCall = async () => {
     if (socket && peerConnection && localStream) {
-      for (const track of localStream.getTracks()) {
-        peerConnection.addTrack(track, localStream);
-      }
+      localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(new RTCSessionDescription(answer));
@@ -337,6 +336,7 @@ const Chat = () => {
       messageRef.current.scrollTop = messageRef.current.scrollHeight;
     }
   };
+
   const joinRoom = async () => {
     if (localStream) {
       alert('You are already in the room.');
@@ -422,7 +422,7 @@ const Chat = () => {
       <Title>ConnectNow Video Chat</Title>
       <Button onClick={joinRoom}>Join Room</Button>
       <Button onClick={leaveRoom}>Leave Room</Button>
-      
+
       <UserListContainer>
         <SearchInput
           type="text"
