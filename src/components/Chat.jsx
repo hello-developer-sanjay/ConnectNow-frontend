@@ -227,27 +227,32 @@ const Chat = () => {
   }, [socket, peerConnection, localStream]);
   
   const createPeerConnection = () => {
-    const newPeerConnection = new RTCPeerConnection();
-    
+    const newPeerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+      ],
+    });
+
     newPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
         socket.emit('iceCandidate', { room, candidate: event.candidate });
       }
     };
-  
+
     newPeerConnection.ontrack = (event) => {
-      console.log('Received remote track:', event.streams[0]);
-      setRemoteStream(event.streams[0]);
+      console.log('Ontrack event:', event);
+      if (remoteStream) {
+        remoteStream.addTrack(event.track);
+      } else {
+        const newRemoteStream = new MediaStream([event.track]);
+        setRemoteStream(newRemoteStream);
+      }
     };
-  
-    // Add audio and video tracks if available
-    if (localStream) {
-      localStream.getTracks().forEach((track) => {
-        newPeerConnection.addTrack(track, localStream);
-      });
-    }
-  
+
     return newPeerConnection;
   };
 
