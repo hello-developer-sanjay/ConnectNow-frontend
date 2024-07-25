@@ -1,75 +1,42 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  margin-top: 1rem;
+  margin: 1rem 0;
 `;
 
 const VideoElement = styled.video`
-  width: 100%;
-  max-width: 500px;
-  margin-bottom: 1rem;
-`;
-
-const ControlButton = styled.button`
-  padding: 0.5rem 1rem;
-  margin: 0.5rem;
-  font-size: 1rem;
-  cursor: pointer;
-  border: none;
+  width: 300px;
+  height: 200px;
+  border: 1px solid #ccc;
   border-radius: 4px;
-  background: linear-gradient(to right, #007bff, #00ff7f);
-  color: white;
-  transition: transform 0.3s ease;
-  &:hover {
-    background: linear-gradient(to right, #0056b3, #00cc6a);
-    transform: scale(1.1);
-  }
+  background: #000;
+  margin: 0 0.5rem;
 `;
 
-const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, toggleVideo }) => {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+const Video = ({ localStream, remoteStream }) => {
+  const localVideoRef = useRef();
+  const remoteVideoRef = useRef();
 
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
+    if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
+    if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
-  useEffect(() => {
-    if (localVideoRef.current) {
-      localVideoRef.current.muted = isMuted;
-    }
-  }, [isMuted]);
-
   return (
     <VideoContainer>
-      <VideoElement
-        playsInline
-        ref={localVideoRef}
-        autoPlay
-      />
-      <VideoElement
-        playsInline
-        ref={remoteVideoRef}
-        autoPlay
-      />
-      <ControlButton onClick={toggleMute}>
-        {isMuted ? 'Unmute' : 'Mute'}
-      </ControlButton>
-      <ControlButton onClick={toggleVideo}>
-        {isVideoOff ? 'Turn Video On' : 'Turn Video Off'}
-      </ControlButton>
+      <VideoElement ref={localVideoRef} autoPlay muted />
+      <VideoElement ref={remoteVideoRef} autoPlay />
     </VideoContainer>
   );
 };
