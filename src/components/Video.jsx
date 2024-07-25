@@ -1,25 +1,45 @@
-// Video.jsx
-import React, { useRef, useEffect } from 'react';
+/* eslint-disable react/prop-types */
+import { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
-const VideoContainer = styled.video`
-  width: 100%;
-  max-width: 400px;
-  margin: 1rem;
-  border: 2px solid #ccc;
-  border-radius: 4px;
+const VideoContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 1rem;
 `;
 
-const Video = ({ stream, muted }) => {
-  const videoRef = useRef(null);
+const VideoElement = styled.video`
+  width: 300px;
+  height: 300px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  background-color: #000;
+`;
+
+const Video = ({ localStream, remoteStream }) => {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
     }
-  }, [stream]);
+  }, [localStream]);
 
-  return <VideoContainer ref={videoRef} autoPlay playsInline muted={muted} />;
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  return (
+    <VideoContainer>
+      <VideoElement ref={localVideoRef} autoPlay playsInline muted />
+      <VideoElement ref={remoteVideoRef} autoPlay playsInline />
+    </VideoContainer>
+  );
 };
 
 export default Video;
