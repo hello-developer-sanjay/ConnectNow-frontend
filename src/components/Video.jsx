@@ -48,9 +48,9 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
 
   useEffect(() => {
     if (localVideoRef.current) {
-      localVideoRef.current.muted = isMuted;
+      localVideoRef.current.muted = true; // Ensure the local video is muted to prevent echo
     }
-  }, [isMuted]);
+  }, []);
 
   return (
     <VideoContainer>
