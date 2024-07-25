@@ -194,7 +194,7 @@ const Chat = () => {
         console.log('Received ICE candidate:', data);
         const { candidate } = data;
         if (peerConnection) {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          await peerConnection.addIceCandidate(new RTCIceandidate(candidate));
         }
       });
 
@@ -283,17 +283,22 @@ const Chat = () => {
       const offer = await newPeerConnection.createOffer();
       await newPeerConnection.setLocalDescription(offer);
 
-      socket.emit('videoOffer', { offer, userToCall: userId });
+      socket.emit('videoCall', {
+        room,
+        offer,
+        userId,
+        caller: userInfo._id,
+      });
+
       setCallStatus('Calling...');
     } catch (error) {
-      console.error('Error starting the call:', error);
-      setCallStatus('Error starting the call');
+      console.error('Error starting call:', error);
+      setCallStatus('Error starting call');
+      toast.error('Failed to start the call.');
     }
   };
 
   const answerCall = async () => {
-    if (!peerConnection) return;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -306,22 +311,20 @@ const Chat = () => {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      socket.emit('videoAnswer', { answer, caller: incomingCallUser });
-      setCallStatus('Connected');
+      socket.emit('videoAnswer', { room, answer, caller: incomingCallUser });
+
       setIncomingCall(false);
+      setCallStatus('Connected');
     } catch (error) {
-      console.error('Error answering the call:', error);
-      setCallStatus('Error answering the call');
+      console.error('Error answering call:', error);
+      setCallStatus('Error answering call');
+      toast.error('Failed to answer the call.');
     }
   };
 
   const rejectCall = () => {
-    socket.emit('callRejected', { caller: incomingCallUser });
+    socket.emit('callRejected', { room, caller: incomingCallUser });
     setIncomingCall(false);
-  };
-
-  const endCall = () => {
-    socket.emit('endCall', { room });
     resetCall();
   };
 
@@ -338,13 +341,43 @@ const Chat = () => {
     setCallStatus('');
   };
 
-  const handleSearchChange = (e) => {
+  const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      user._id !== userInfo._id
   );
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!message.trim() && !file) return;
+
+    const formData = new FormData();
+    formData.append('message', message.trim());
+    if (file) {
+      formData.append('file', file);
+    }
+
+    try {
+      const { data } = await axios.post(`/api/messages/${room}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setMessages((prevMessages) => [...prevMessages, data]);
+      setMessage('');
+      setFile(null);
+      scrollToBottom();
+      socket.emit('sendMessage', data);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message.');
+    }
+  };
 
   const scrollToBottom = () => {
     if (messageRef.current) {
@@ -352,56 +385,21 @@ const Chat = () => {
     }
   };
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      socket.emit('sendMessage', { room, message, sender: userInfo._id });
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: message, sender: userInfo._id, timestamp: new Date().toISOString() },
-      ]);
-      setMessage('');
-      scrollToBottom();
-    }
-  };
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
-
-  const sendFile = async () => {
-    if (file) {
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        const { data } = await axios.post('/api/files/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        socket.emit('sendMessage', { room, message: data.filePath, sender: userInfo._id, isFile: true });
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { text: data.filePath, sender: userInfo._id, timestamp: new Date().toISOString(), isFile: true },
-        ]);
-        setFile(null);
-        scrollToBottom();
-      } catch (error) {
-        console.error('Error uploading file:', error);
-      }
-    }
-  };
-
   const toggleMute = () => {
     if (localStream) {
-      localStream.getAudioTracks().forEach((track) => (track.enabled = !isMuted));
-      setIsMuted((prev) => !prev);
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+        setIsMuted(!track.enabled);
+      });
     }
   };
 
   const toggleVideo = () => {
     if (localStream) {
-      localStream.getVideoTracks().forEach((track) => (track.enabled = !isVideoOff));
-      setIsVideoOff((prev) => !prev);
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+        setIsVideoOff(!track.enabled);
+      });
     }
   };
   const joinRoom = async () => {
@@ -430,56 +428,66 @@ const Chat = () => {
   };
 
 
+
   return (
     <ChatContainer>
-      <Title>Video Chat</Title>
+      <Title>Connect Now</Title>
       <Button onClick={joinRoom}>Join Room</Button>
       <Button onClick={leaveRoom}>Leave Room</Button>
 
+      <UserListContainer>
+        <SearchInput
+          type="text"
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={handleSearch}
+        />
+        {loading ? (
+          <ClipLoader color="#007bff" loading={loading} size={150} />
+        ) : (
+          <UserList>
+            {filteredUsers.map((user) => (
+              <UserItem key={user._id}>
+                <p>{user.name}</p>
+                <Button onClick={() => startCall(user._id)}>Call</Button>
+              </UserItem>
+            ))}
+          </UserList>
+        )}
+      </UserListContainer>
       <div>
-        <UserListContainer>
-          <SearchInput
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-          {loading ? (
-            <ClipLoader size={50} color={'#123abc'} loading={loading} />
-          ) : (
-            <UserList>
-              {filteredUsers.map((user) => (
-                <UserItem key={user._id} onClick={() => startCall(user._id)}>
-                  <p>{user.name}</p>
-                  <Button onClick={() => startCall(user._id)}>Call</Button>
-                </UserItem>
-              ))}
-            </UserList>
-          )}
-        </UserListContainer>
-      </div>
-      <div>
-        <CallStatus connected={callStatus === 'Connected'}>{callStatus}</CallStatus>
+        <Video
+          localStream={localStream}
+          remoteStream={remoteStream}
+          isMuted={isMuted}
+          isVideoOff={isVideoOff}
+          toggleMute={toggleMute}
+          toggleVideo={toggleVideo}
+        />
+        <CallStatus connected={callStatus === 'Connected'}>
+          {callStatus}
+        </CallStatus>
         {incomingCall && (
           <IncomingCall>
-            <p>{incomingCallUser} is calling...</p>
+            <p>{incomingCallUser.name} is calling...</p>
             <Button onClick={answerCall}>Answer</Button>
             <Button onClick={rejectCall}>Reject</Button>
           </IncomingCall>
         )}
-        <Video localStream={localStream} remoteStream={remoteStream} />
-        <Button onClick={endCall}>End Call</Button>
-        <Button onClick={toggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
-        <Button onClick={toggleVideo}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
         <MessageContainer>
-          <MessageInput
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message..."
-          />
-          <Button onClick={sendMessage}>Send Message</Button>
-          <FileInput type="file" onChange={handleFileChange} />
-          <Button onClick={sendFile}>Send File</Button>
+          <form onSubmit={sendMessage}>
+            <MessageInput
+              rows="3"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message here..."
+            />
+            <FileInput
+              type="file"
+              onChange={(e) => setFile(e.target.files[0])}
+            />
+            <Button type="submit">Send</Button>
+          </form>
           <MessagesList ref={messageRef}>
             {messages.map((msg, index) => (
               <Message key={index} message={msg} />
