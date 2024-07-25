@@ -227,28 +227,26 @@ const Chat = () => {
   }, [socket, peerConnection, localStream]);
 
   const createPeerConnection = () => {
-    const newPeerConnection = new RTCPeerConnection();
+    const newPeerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    });
 
     newPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
         socket.emit('iceCandidate', { room, candidate: event.candidate });
       }
     };
 
     newPeerConnection.ontrack = (event) => {
-      console.log('Received remote track:', event.streams[0]);
       setRemoteStream(event.streams[0]);
     };
 
-    if (localStream) {
-      localStream.getTracks().forEach((track) => {
-        newPeerConnection.addTrack(track, localStream);
-      });
-    }
-
     return newPeerConnection;
   };
+
 
   const startCall = async (userId) => {
     if (!localStream) {
@@ -266,18 +264,21 @@ const Chat = () => {
   };
 
   const acceptCall = async () => {
-    if (!localStream) {
-      alert('Please join the room first to accept a call.');
+    if (!peerConnection) {
+      console.error('No peer connection available');
       return;
     }
-    console.log('Accepting call from user:', incomingCallUser);
-    if (peerConnection) {
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.emit('videoAnswer', { room, userId: incomingCallUser, answer });
-      setIncomingCall(false);
-      setCallStatus('Connected');
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    setLocalStream(stream);
+
+    stream.getTracks().forEach((track) => {
+      peerConnection.addTrack(track, stream);
+    });
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(new RTCSessionDescription(answer));
+    socket.emit('videoAnswer', { room, answer });
+    setIncomingCall(false);
   };
 
   const rejectCall = () => {
