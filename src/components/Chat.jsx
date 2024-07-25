@@ -225,29 +225,31 @@ const Chat = () => {
       socket.emit('joinRoom', { room });
     }
   }, [socket, peerConnection, localStream]);
-
   const createPeerConnection = () => {
     const newPeerConnection = new RTCPeerConnection();
+    
     newPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('Sending ICE candidate:', event.candidate);
         socket.emit('iceCandidate', { room, candidate: event.candidate });
       }
     };
-
+  
     newPeerConnection.ontrack = (event) => {
       console.log('Received remote track:', event.streams[0]);
       setRemoteStream(event.streams[0]);
     };
-
+  
+    // Add audio and video tracks if available
     if (localStream) {
       localStream.getTracks().forEach((track) => {
         newPeerConnection.addTrack(track, localStream);
       });
     }
-
+  
     return newPeerConnection;
   };
+  
 
   const startCall = async (userId) => {
     if (!localStream) {
@@ -299,7 +301,6 @@ const Chat = () => {
     setIncomingCall(false);
     setIncomingCallUser('');
   };
-
   const handleJoinRoom = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
