@@ -304,14 +304,21 @@ const Chat = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
       });
       setLocalStream(stream);
-      setCallStatus('Ready to call');
-      toast.success('Joined the room successfully.');
+      console.log('Local stream:', stream);
+  
+      if (peerConnection) {
+        stream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, stream);
+        });
+      }
     } catch (error) {
       console.error('Error accessing media devices:', error);
-      toast.error('Error accessing media devices.');
     }
   };
 
