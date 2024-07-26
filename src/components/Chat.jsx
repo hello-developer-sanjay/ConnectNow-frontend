@@ -8,7 +8,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ClipLoader from 'react-spinners/ClipLoader';
 import Message from './Message';
-import axios from 'axios';
 
 const ChatContainer = styled.div`
   padding: 1rem;
@@ -178,7 +177,6 @@ const Chat = () => {
         await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         setIncomingCall(true);
         setIncomingCallUser(caller);
-        playTune();
       });
 
       socket.on('videoAnswer', async (data) => {
@@ -271,12 +269,11 @@ const Chat = () => {
     await newPeerConnection.setLocalDescription(offer);
 
     socket.emit('videoOffer', { room, offer, callee: userId });
+
     setCallStatus('Calling...');
   };
 
   const acceptCall = async () => {
-    if (!peerConnection) return;
-
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     setLocalStream(stream);
 
@@ -287,46 +284,57 @@ const Chat = () => {
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
-    socket.emit('videoAnswer', { room, answer });
+    socket.emit('videoAnswer', { room, answer, caller: incomingCallUser });
+
     setCallStatus('Connected');
-    stopTune();
     setIncomingCall(false);
   };
 
   const rejectCall = () => {
-    socket.emit('callRejected', { room });
-    resetCall();
-    stopTune();
+    socket.emit('callRejected', { room, caller: incomingCallUser });
     setIncomingCall(false);
+    setIncomingCallUser('');
   };
 
   const endCall = () => {
-    socket.emit('callDisconnected', { room });
-    resetCall();
-  };
-
-  const resetCall = () => {
     if (peerConnection) {
       peerConnection.close();
       setPeerConnection(null);
-    }
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
+      setRemoteStream(new MediaStream());
       setLocalStream(null);
     }
-    setRemoteStream(new MediaStream());
+    socket.emit('callDisconnected', { room });
     setCallStatus('');
   };
 
-  const sendMessage = (e) => {
-    e.preventDefault();
-    if (!message.trim()) return;
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
 
-    const newMessage = { sender: userInfo.name, text: message, createdAt: new Date() };
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (message.trim() === '') return;
+    const newMessage = { user: userInfo.name, text: message };
+    setMessages([...messages, newMessage]);
     socket.emit('sendMessage', { room, message: newMessage });
     setMessage('');
-    scrollToBottom();
+  };
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
+  const handleSendFile = (e) => {
+    e.preventDefault();
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newMessage = { user: userInfo.name, file: reader.result, fileName: file.name };
+      setMessages([...messages, newMessage]);
+      socket.emit('sendFile', { room, message: newMessage });
+      setFile(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   const scrollToBottom = () => {
@@ -337,17 +345,25 @@ const Chat = () => {
 
   const toggleMute = () => {
     if (localStream) {
-      localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
-      setIsMuted(!localStream.getAudioTracks()[0].enabled);
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+        setIsMuted(!track.enabled);
+      });
     }
   };
 
   const toggleVideo = () => {
     if (localStream) {
-      localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
-      setIsVideoOff(!localStream.getVideoTracks()[0].enabled);
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+        setIsVideoOff(!track.enabled);
+      });
     }
   };
+
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const joinRoom = async () => {
     if (localStream) {
       alert('You are already in the room.');
@@ -377,7 +393,7 @@ const Chat = () => {
 
   return (
     <ChatContainer>
-      <Title>Chat Application</Title>
+      <Title>Chat and Video Call</Title>
       <Button onClick={joinRoom}>Join Room</Button>
       <Button onClick={leaveRoom}>Leave Room</Button>
 
@@ -386,54 +402,56 @@ const Chat = () => {
           type="text"
           placeholder="Search users..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearch}
         />
         {loading ? (
-          <ClipLoader size={30} color="#007bff" />
+          <ClipLoader color="#007bff" />
         ) : (
           <UserList>
-            {users
-              .filter((user) => user.name.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map((user) => (
-                <UserItem key={user._id}>
-                  <p>{user.name}</p>
-                  <Button onClick={() => startCall(user._id)}>Call</Button>
-                </UserItem>
-              ))}
+            {filteredUsers.map((user) => (
+              <UserItem key={user._id}>
+                <span>{user.name}</span>
+                <Button onClick={() => startCall(user._id)}>Call</Button>
+              </UserItem>
+            ))}
           </UserList>
         )}
       </UserListContainer>
-      <div>
-        <CallStatus connected={callStatus === 'Connected'}>{callStatus || 'Not in a call'}</CallStatus>
-        {incomingCall && (
-          <IncomingCall>
-            <p>{incomingCallUser} is calling...</p>
-            <Button onClick={acceptCall}>Accept</Button>
-            <Button onClick={rejectCall}>Reject</Button>
-          </IncomingCall>
-        )}
-        <Video stream={localStream} />
-        <Video stream={remoteStream} />
-        <Button onClick={endCall}>End Call</Button>
-        <Button onClick={toggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
-        <Button onClick={toggleVideo}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
-      </div>
+      <Video
+        localStream={localStream}
+        remoteStream={remoteStream}
+        isMuted={isMuted}
+        isVideoOff={isVideoOff}
+        toggleMute={toggleMute}
+        toggleVideo={toggleVideo}
+        endCall={endCall}
+        callStatus={callStatus}
+      />
+      {incomingCall && (
+        <IncomingCall>
+          <p>{incomingCallUser} is calling...</p>
+          <Button onClick={acceptCall}>Accept</Button>
+          <Button onClick={rejectCall}>Reject</Button>
+        </IncomingCall>
+      )}
       <MessageContainer>
-        <form onSubmit={sendMessage}>
+        <form onSubmit={handleSendMessage}>
           <MessageInput
-            rows="4"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
           />
           <Button type="submit">Send</Button>
         </form>
+        <form onSubmit={handleSendFile}>
+          <FileInput type="file" onChange={handleFileChange} />
+          <Button type="submit">Send File</Button>
+        </form>
         <MessagesList ref={messageRef}>
           {messages.map((msg, index) => (
             <Message key={index} message={msg} />
           ))}
         </MessagesList>
-        <FileInput type="file" onChange={(e) => setFile(e.target.files[0])} />
       </MessageContainer>
       <ToastContainer />
     </ChatContainer>
