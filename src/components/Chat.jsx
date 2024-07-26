@@ -132,7 +132,7 @@ const FileInput = styled.input`
 
 const Chat = () => {
   const [socket, setSocket] = useState(null);
-  const [room, setRoom] = useState('commonRoom');
+  const [room, setRoom] = useState('');
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(new MediaStream());
   const [peerConnection, setPeerConnection] = useState(null);
@@ -216,15 +216,13 @@ const Chat = () => {
         a.click();
       });
 
-      socket.emit('joinRoom', { room, user: userInfo.name });
       return () => {
         if (socket) {
-          socket.emit('leaveRoom', { room, user: userInfo.name });
           socket.close();
         }
       };
     }
-  }, [socket, room, userInfo.name, peerConnection]);
+  }, [socket, peerConnection]);
 
   useEffect(() => {
     if (messageRef.current) {
@@ -278,6 +276,20 @@ const Chat = () => {
     };
 
     return newPeerConnection;
+  };
+
+  const joinRoom = async () => {
+    if (room.trim()) {
+      socket.emit('joinRoom', { room, user: userInfo.name });
+      const stream = await getLocalStream();
+      const newPeerConnection = createPeerConnection();
+      setPeerConnection(newPeerConnection);
+      stream.getTracks().forEach((track) => newPeerConnection.addTrack(track, stream));
+      setLocalStream(stream);
+      toast.success(`Joined room: ${room}`);
+    } else {
+      toast.error('Please enter a room name.');
+    }
   };
 
   const callUser = async (user) => {
@@ -352,13 +364,17 @@ const Chat = () => {
   };
 
   const toggleMute = () => {
-    localStream.getAudioTracks()[0].enabled = !isMuted;
-    setIsMuted(!isMuted);
+    if (localStream) {
+      localStream.getAudioTracks()[0].enabled = !isMuted;
+      setIsMuted(!isMuted);
+    }
   };
 
   const toggleVideo = () => {
-    localStream.getVideoTracks()[0].enabled = !isVideoOff;
-    setIsVideoOff(!isVideoOff);
+    if (localStream) {
+      localStream.getVideoTracks()[0].enabled = !isVideoOff;
+      setIsVideoOff(!isVideoOff);
+    }
   };
 
   const playTune = () => {
@@ -375,21 +391,13 @@ const Chat = () => {
       tune.currentTime = 0;
     }
   };
-  const joinRoom = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    setLocalStream(stream);
-    socket.emit('joinRoom', { room });
-    console.log('Joined room:', room);
-  };
+
   const filteredUsers = users.filter((user) => user.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <ChatContainer>
-      <audio id="tune" src="/path/to/your/tune.mp3" loop></audio>
-      
+      <audio id="tune" src="https://sanjaybasket.s3.ap-south-1.amazonaws.com/taemin_heaven.mp3" loop></audio>
       <Title>ConnectNow Chat</Title>
-      <Button onClick={joinRoom}>Join Room</Button>
-
       <UserListContainer>
         <SearchInput
           type="text"
@@ -411,6 +419,13 @@ const Chat = () => {
         )}
       </UserListContainer>
       <div>
+        <input
+          type="text"
+          placeholder="Enter room name"
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+        />
+        <Button onClick={joinRoom}>Join Room</Button>
         {incomingCall && (
           <IncomingCall>
             <p>{incomingCallUser} is calling you...</p>
