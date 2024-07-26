@@ -41,3 +41,4 @@ const Video = ({ localStream, remoteStream }) => {
 };
 
 export default Video;
+
