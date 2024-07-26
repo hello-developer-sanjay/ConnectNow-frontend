@@ -165,6 +165,7 @@ const Chat = () => {
     const newSocket = io('https://connectnow-backend-24july.onrender.com');
     setSocket(newSocket);
     console.log('Socket connection established:', newSocket.id);
+
     return () => newSocket.close();
   }, []);
 
@@ -186,8 +187,8 @@ const Chat = () => {
         const { answer } = data;
         if (peerConnection) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          setCallStatus('Connected');
         }
-        setCallStatus('Connected');
       });
 
       socket.on('iceCandidate', async (data) => {
