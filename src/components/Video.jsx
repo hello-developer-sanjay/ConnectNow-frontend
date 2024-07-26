@@ -37,7 +37,6 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.muted = true; // Mute local video element to prevent echo
     }
   }, [localStream]);
 
@@ -47,12 +46,19 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
     }
   }, [remoteStream]);
 
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.muted = true; // Ensure local video is always muted to avoid echo
+    }
+  }, []);
+
   return (
     <VideoContainer>
       <VideoElement
         playsInline
         ref={localVideoRef}
         autoPlay
+        muted // Ensure local video is muted
       />
       <VideoElement
         playsInline
