@@ -1,4 +1,4 @@
-import  { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
@@ -48,14 +48,22 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
 
   useEffect(() => {
     if (localVideoRef.current) {
-      localVideoRef.current.muted = true; // Always mute the local video to prevent echo
+      localVideoRef.current.muted = isMuted;
     }
-  }, []);
+  }, [isMuted]);
 
   return (
     <VideoContainer>
-      <VideoElement playsInline ref={localVideoRef} autoPlay />
-      <VideoElement playsInline ref={remoteVideoRef} autoPlay />
+      <VideoElement
+        playsInline
+        ref={localVideoRef}
+        autoPlay
+      />
+      <VideoElement
+        playsInline
+        ref={remoteVideoRef}
+        autoPlay
+      />
       <ControlButton onClick={toggleMute}>
         {isMuted ? 'Unmute' : 'Mute'}
       </ControlButton>
