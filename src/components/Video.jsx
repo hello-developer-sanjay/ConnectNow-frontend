@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import  { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
@@ -48,7 +48,7 @@ const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, tog
 
   useEffect(() => {
     if (localVideoRef.current) {
-      localVideoRef.current.muted = true; // Ensure local video is muted
+      localVideoRef.current.muted = true; // Always mute the local video to prevent echo
     }
   }, []);
 
