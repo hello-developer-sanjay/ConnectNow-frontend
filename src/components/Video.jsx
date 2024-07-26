@@ -1,39 +1,17 @@
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  height: 100%;
-  background: black;
-  padding: 1rem;
-  gap: 1rem;
-
-  @media (min-width: 768px) {
-    flex-direction: row;
-    justify-content: space-evenly;
-  }
+  margin-top: 1rem;
 `;
 
-const StyledVideo = styled.video`
+const VideoElement = styled.video`
   width: 100%;
-  height: auto;
-  max-width: 100%;
-  border: 5px solid #007bff;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
-  }
-
-  @media (min-width: 768px) {
-    width: 45%;
-  }
+  max-width: 500px;
+  margin-bottom: 1rem;
 `;
 
 const ControlButton = styled.button`
@@ -46,17 +24,15 @@ const ControlButton = styled.button`
   background: linear-gradient(to right, #007bff, #00ff7f);
   color: white;
   transition: transform 0.3s ease;
-
   &:hover {
     background: linear-gradient(to right, #0056b3, #00cc6a);
     transform: scale(1.1);
   }
 `;
 
-const Video = ({ localStream, remoteStream }) => {
-  const localVideoRef = useRef();
-  const remoteVideoRef = useRef();
-  const [isFrontCamera, setIsFrontCamera] = useState(true);
+const Video = ({ localStream, remoteStream, isMuted, toggleMute, isVideoOff, toggleVideo }) => {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   useEffect(() => {
     if (localStream && localVideoRef.current) {
@@ -70,45 +46,21 @@ const Video = ({ localStream, remoteStream }) => {
     }
   }, [remoteStream]);
 
-  const toggleCamera = async () => {
-    const videoTracks = localStream.getVideoTracks();
-    if (videoTracks.length > 0) {
-      videoTracks[0].stop();
-      const constraints = {
-        video: {
-          facingMode: isFrontCamera ? 'environment' : 'user',
-        },
-        audio: true,
-      };
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      localStream.removeTrack(videoTracks[0]);
-      localStream.addTrack(newVideoTrack);
-      localVideoRef.current.srcObject = localStream;
-      setIsFrontCamera(!isFrontCamera);
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.muted = true; // Ensure local video is muted
     }
-  };
-
-  const enterFullScreen = (ref) => {
-    if (ref.current) {
-      if (ref.current.requestFullscreen) {
-        ref.current.requestFullscreen();
-      } else if (ref.current.mozRequestFullScreen) { // Firefox
-        ref.current.mozRequestFullScreen();
-      } else if (ref.current.webkitRequestFullscreen) { // Chrome, Safari and Opera
-        ref.current.webkitRequestFullscreen();
-      } else if (ref.current.msRequestFullscreen) { // IE/Edge
-        ref.current.msRequestFullscreen();
-      }
-    }
-  };
+  }, []);
 
   return (
     <VideoContainer>
-      <StyledVideo ref={localVideoRef} autoPlay playsInline onClick={() => enterFullScreen(localVideoRef)} />
-      <StyledVideo ref={remoteVideoRef} autoPlay playsInline onClick={() => enterFullScreen(remoteVideoRef)} />
-      <ControlButton onClick={toggleCamera}>
-        Switch to {isFrontCamera ? 'Rear' : 'Front'} Camera
+      <VideoElement playsInline ref={localVideoRef} autoPlay />
+      <VideoElement playsInline ref={remoteVideoRef} autoPlay />
+      <ControlButton onClick={toggleMute}>
+        {isMuted ? 'Unmute' : 'Mute'}
+      </ControlButton>
+      <ControlButton onClick={toggleVideo}>
+        {isVideoOff ? 'Turn Video On' : 'Turn Video Off'}
       </ControlButton>
     </VideoContainer>
   );
