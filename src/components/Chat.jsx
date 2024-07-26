@@ -178,7 +178,7 @@ const Chat = () => {
         setIncomingCall(true);
         setIncomingCallUser(caller);
       });
-
+  
       socket.on('videoAnswer', async (data) => {
         console.log('Received video answer:', data);
         const { answer } = data;
@@ -187,7 +187,7 @@ const Chat = () => {
         }
         setCallStatus('Connected');
       });
-
+  
       socket.on('iceCandidate', async (data) => {
         console.log('Received ICE candidate:', data);
         const { candidate } = data;
@@ -195,35 +195,35 @@ const Chat = () => {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         }
       });
-
+  
       socket.on('callRejected', () => {
         console.log('Call rejected by the user.');
         setCallStatus('Call rejected by the user.');
         toast.warning('The user rejected your call.');
       });
-
+  
       socket.on('callDisconnected', () => {
         console.log('Call disconnected.');
         setCallStatus('Call disconnected.');
         toast.info('The call has been disconnected.');
         resetCall();
       });
-
+  
       socket.on('userBusy', () => {
         console.log('User is busy.');
         setCallStatus('User is busy');
         toast.warning('The user is currently on another call.');
       });
-
+  
       socket.on('receiveMessage', (message) => {
         setMessages((prevMessages) => [...prevMessages, message]);
         scrollToBottom();
       });
-
+  
       socket.emit('joinRoom', { room });
     }
   }, [socket, peerConnection, localStream]);
-
+  
   const createPeerConnection = () => {
     const newPeerConnection = new RTCPeerConnection({
       iceServers: [
@@ -252,28 +252,26 @@ const Chat = () => {
     return newPeerConnection;
   };
 
-  const startCall = async (userId) => {
+  const startCall = async () => {
     if (peerConnection) return;
-
+  
     const newPeerConnection = createPeerConnection();
     setPeerConnection(newPeerConnection);
-
+  
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     setLocalStream(stream);
-
+  
     stream.getTracks().forEach((track) => {
       newPeerConnection.addTrack(track, stream);
     });
-
+  
     const offer = await newPeerConnection.createOffer();
     await newPeerConnection.setLocalDescription(offer);
-
-    socket.emit('videoOffer', { room, offer, callee: userId });
-
+  
+    socket.emit('videoOffer', { room, offer });
     setCallStatus('Calling...');
   };
-
-  const acceptCall = async () => {
+   const acceptCall = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     setLocalStream(stream);
 
@@ -365,15 +363,12 @@ const Chat = () => {
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const joinRoom = async () => {
-    if (localStream) {
-      alert('You are already in the room.');
-      return;
-    }
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     setLocalStream(stream);
-    toast.success('Successfully joined the room.');
     socket.emit('joinRoom', { room });
+    toast.success('Successfully joined the room.');
   };
+  
 
   const leaveRoom = () => {
     if (localStream) {
