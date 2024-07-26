@@ -132,7 +132,7 @@ const FileInput = styled.input`
 
 const Chat = () => {
   const [socket, setSocket] = useState(null);
-  const [room, setRoom] = useState('');
+  const [room, setRoom] = useState('ram'); // Default room name "ram"
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(new MediaStream());
   const [peerConnection, setPeerConnection] = useState(null);
@@ -198,8 +198,13 @@ const Chat = () => {
         }
       });
 
-      socket.on('callEnded', () => {
-        console.log('Call ended');
+      socket.on('callRejected', () => {
+        console.log('Call rejected');
+        endCall();
+      });
+
+      socket.on('callDisconnected', () => {
+        console.log('Call disconnected');
         endCall();
       });
 
@@ -260,19 +265,10 @@ const Chat = () => {
     newPeerConnection.ontrack = (event) => {
       console.log('Remote stream added.');
       setRemoteStream((prevStream) => {
-        const updatedStream = new MediaStream([...prevStream.getTracks(), ...event.streams[0].getTracks()]);
-        return updatedStream;
+        const newStream = new MediaStream(prevStream);
+        newStream.addTrack(event.track);
+        return newStream;
       });
-    };
-
-    newPeerConnection.onnegotiationneeded = async () => {
-      try {
-        const offer = await newPeerConnection.createOffer();
-        await newPeerConnection.setLocalDescription(offer);
-        socket.emit('videoOffer', { offer, room, caller: userInfo.name });
-      } catch (error) {
-        console.error('Error during negotiation:', error);
-      }
     };
 
     return newPeerConnection;
@@ -303,7 +299,11 @@ const Chat = () => {
     const newPeerConnection = createPeerConnection();
     setPeerConnection(newPeerConnection);
 
+    const offer = await newPeerConnection.createOffer();
+    await newPeerConnection.setLocalDescription(offer);
+
     stream.getTracks().forEach((track) => newPeerConnection.addTrack(track, stream));
+    socket.emit('videoOffer', { offer, caller: userInfo.name, room });
   };
 
   const answerCall = async () => {
@@ -323,7 +323,7 @@ const Chat = () => {
     setIncomingCallUser('');
     setCallStatus('');
     stopTune();
-    socket.emit('callDeclined', { room });
+    socket.emit('callRejected', { room });
   };
 
   const endCall = () => {
@@ -336,7 +336,7 @@ const Chat = () => {
     setCallStatus('');
     setIncomingCall(false);
     setIncomingCallUser('');
-    socket.emit('callEnded', { room });
+    socket.emit('callDisconnected', { room });
   };
 
   const sendMessage = () => {
@@ -396,7 +396,7 @@ const Chat = () => {
 
   return (
     <ChatContainer>
-      <audio id="tune" src="https://sanjaybasket.s3.ap-south-1.amazonaws.com/taemin_heaven.mp3" loop></audio>
+      <audio id="tune" src="/path/to/your/tune.mp3" loop></audio>
       <Title>ConnectNow Chat</Title>
       <UserListContainer>
         <SearchInput
