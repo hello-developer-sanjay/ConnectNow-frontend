@@ -1,43 +1,33 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
   margin: 1rem 0;
 `;
 
-const StyledVideo = styled.video`
+const VideoElement = styled.video`
   width: 100%;
   max-width: 400px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  margin-bottom: 1rem;
+  background: #000;
 `;
 
-const Video = ({ localStream, remoteStream }) => {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+const Video = ({ stream }) => {
+  const videoRef = useRef();
 
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
     }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
+  }, [stream]);
 
   return (
     <VideoContainer>
-      <h3>Local Video</h3>
-      <StyledVideo ref={localVideoRef} autoPlay playsInline muted />
-      <h3>Remote Video</h3>
-      <StyledVideo ref={remoteVideoRef} autoPlay playsInline />
+      <VideoElement ref={videoRef} autoPlay playsInline />
     </VideoContainer>
   );
 };
