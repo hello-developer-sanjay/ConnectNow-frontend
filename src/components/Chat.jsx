@@ -210,42 +210,76 @@ const Chat = () => {
 
       socket.on('message', (newMessage) => {
         setMessages((prevMessages) => [...prevMessages, newMessage]);
-        if (messageRef.current) {
-          messageRef.current.scrollTop = messageRef.current.scrollHeight;
-        }
+        messageRef.current.scrollTop = messageRef.current.scrollHeight;
       });
 
-      socket.on('file', ({ fileName, fileContent }) => {
-        const newMessage = { text: `File received: ${fileName}`, fileContent };
-        setMessages((prevMessages) => [...prevMessages, newMessage]);
+      socket.on('file', (fileData) => {
+        const { fileName, fileContent } = fileData;
+        const a = document.createElement('a');
+        a.href = fileContent;
+        a.download = fileName;
+        a.click();
       });
+
+      return () => {
+        if (socket) {
+          socket.close();
+        }
+      };
     }
   }, [socket, peerConnection]);
 
-  const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
+  useEffect(() => {
+    if (messageRef.current) {
+      messageRef.current.scrollTop = messageRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-    pc.onicecandidate = (event) => {
+  const getLocalStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+      return stream;
+    } catch (error) {
+      console.error('Error accessing media devices.', error);
+    }
+  };
+
+  const createPeerConnection = () => {
+    const configuration = {
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302',
+        },
+      ],
+    };
+
+    const newPeerConnection = new RTCPeerConnection(configuration);
+
+    newPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('iceCandidate', { candidate: event.candidate, room });
+        console.log('ICE candidate emitted:', event.candidate);
       }
     };
 
-    pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      setRemoteStream(stream);
+    newPeerConnection.ontrack = (event) => {
+      console.log('Remote stream added.');
+      setRemoteStream((prevStream) => {
+        const newStream = new MediaStream(prevStream);
+        newStream.addTrack(event.track);
+        return newStream;
+      });
     };
 
-    return pc;
+    return newPeerConnection;
   };
 
   const joinRoom = async () => {
-    if (room) {
+    if (room.trim()) {
       socket.emit('joinRoom', { room, user: userInfo.name });
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setLocalStream(stream);
+      console.log('Joining room:', room);
+      const stream = await getLocalStream();
       const newPeerConnection = createPeerConnection();
       stream.getTracks().forEach((track) => newPeerConnection.addTrack(track, stream));
       setPeerConnection(newPeerConnection);
@@ -307,7 +341,7 @@ const Chat = () => {
 
   const sendMessage = () => {
     if (message.trim()) {
-      socket.emit('sendMessage', { room, userId: userInfo.id, text: message });
+      socket.emit('message', { room, user: userInfo.name, text: message });
       setMessage('');
     }
   };
