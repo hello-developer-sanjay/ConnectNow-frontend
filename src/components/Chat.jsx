@@ -270,33 +270,31 @@ const Chat = () => {
     };
 
     newPeerConnection.ontrack = (event) => {
-      console.log('Remote stream added.');
       setRemoteStream((prevStream) => {
         const newStream = new MediaStream(prevStream);
         newStream.addTrack(event.track);
         return newStream;
       });
+      console.log('Track received:', event.track);
     };
 
     return newPeerConnection;
   };
 
   const joinRoom = async () => {
-    if (room.trim()) {
-      socket.emit('joinRoom', { room, user: userInfo.name });
-      socket.on('userJoined', ({ user, id }) => {
-        console.log(`${user} joined the room. ID: ${id}`);
-      });
+    if (socket && userInfo) {
+      socket.emit('joinRoom', { room, name: userInfo.name });
+
+      const newPeerConnection = createPeerConnection();
 
       const stream = await getLocalStream();
-      const newPeerConnection = createPeerConnection();
       stream.getTracks().forEach((track) => newPeerConnection.addTrack(track, stream));
 
       setPeerConnection(newPeerConnection);
       setCallStatus('Waiting for a call...');
 
       toast.success(`Joined room: ${room}`, {
-        position: "top-right",
+        position: 'top-right',
         autoClose: 5000,
         hideProgressBar: false,
         closeOnClick: true,
@@ -406,7 +404,7 @@ const Chat = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           {loading ? (
-            <ClipLoader size={150} color={"#123abc"} loading={loading} />
+            <ClipLoader size={150} color={'#123abc'} loading={loading} />
           ) : (
             <UserList>
               {filteredUsers.map((user) => (
