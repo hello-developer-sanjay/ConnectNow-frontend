@@ -8,7 +8,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ClipLoader from 'react-spinners/ClipLoader';
 import Message from './Message';
-import axios from 'axios';
 
 const ChatContainer = styled.div`
   padding: 1rem;
