@@ -8,7 +8,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ClipLoader from 'react-spinners/ClipLoader';
 import Message from './Message';
-import axios from 'axios';
 
 const ChatContainer = styled.div`
   padding: 1rem;
@@ -228,6 +227,12 @@ const Chat = () => {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
 
+    newPeerConnection.ontrack = (event) => {
+      event.streams[0].getTracks().forEach(track => {
+        remoteStream.addTrack(track);
+      });
+    };
+
     if (localStream) {
       localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
     }
@@ -245,8 +250,9 @@ const Chat = () => {
     };
 
     newPeerConnection.ontrack = (event) => {
-      const [remoteStreamTrack] = event.streams;
-      setRemoteStream(remoteStreamTrack);
+      event.streams[0].getTracks().forEach(track => {
+        remoteStream.addTrack(track);
+      });
     };
 
     const offer = await newPeerConnection.createOffer();
@@ -270,7 +276,6 @@ const Chat = () => {
   const rejectCall = () => {
     socket.emit('callRejected', { caller: incomingCallUser });
     setIncomingCall(false);
-    setCallStatus('Call rejected');
   };
 
   const endCall = () => {
@@ -296,7 +301,7 @@ const Chat = () => {
 
     const newMessage = { user: userInfo.name, text: message.trim() };
     socket.emit('message', { message: newMessage, room });
-    setMessages([...messages, newMessage]);
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
     setMessage('');
 
     if (messageRef.current) {
