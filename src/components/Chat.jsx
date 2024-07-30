@@ -8,6 +8,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ClipLoader from 'react-spinners/ClipLoader';
 import Message from './Message';
+import axios from 'axios';
 
 const ChatContainer = styled.div`
   padding: 1rem;
@@ -227,12 +228,6 @@ const Chat = () => {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
 
-    newPeerConnection.ontrack = (event) => {
-      event.streams[0].getTracks().forEach(track => {
-        remoteStream.addTrack(track);
-      });
-    };
-
     if (localStream) {
       localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
     }
@@ -250,9 +245,8 @@ const Chat = () => {
     };
 
     newPeerConnection.ontrack = (event) => {
-      event.streams[0].getTracks().forEach(track => {
-        remoteStream.addTrack(track);
-      });
+      const [remoteStreamTrack] = event.streams;
+      setRemoteStream(remoteStreamTrack);
     };
 
     const offer = await newPeerConnection.createOffer();
@@ -284,42 +278,103 @@ const Chat = () => {
       peerConnection.close();
       setPeerConnection(null);
       setRemoteStream(new MediaStream());
-      setCallStatus('');
     }
-  };
 
-  const handleFileSend = () => {
-    if (file && socket) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        socket.emit('file', { fileName: file.name, fileContent: reader.result });
-        toast.success('File sent successfully!');
-      };
-      reader.readAsDataURL(file);
-    }
+    socket.emit('callDisconnected', { room });
+    setCallStatus('');
   };
 
   const handleFileReceive = (fileName, fileContent) => {
     const link = document.createElement('a');
-    link.href = fileContent;
+    link.href = `data:application/octet-stream;base64,${fileContent}`;
     link.download = fileName;
     link.click();
-    toast.info('File received!');
   };
 
   const handleSendMessage = () => {
-    if (message.trim() && socket) {
-      socket.emit('message', { user: userInfo.name, text: message });
-      setMessage('');
+    if (message.trim() === '') return;
+
+    const newMessage = { user: userInfo.name, text: message.trim() };
+    socket.emit('message', { message: newMessage, room });
+    setMessages([...messages, newMessage]);
+    setMessage('');
+
+    if (messageRef.current) {
+      messageRef.current.scrollTop = messageRef.current.scrollHeight;
     }
   };
 
+  const handleSendFile = (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const fileContent = reader.result.split(',')[1];
+      socket.emit('file', { room, fileName: file.name, fileContent });
+    };
+
+    reader.readAsDataURL(file);
+    setFile(null);
+  };
+
+  const handleMute = () => {
+    localStream.getAudioTracks()[0].enabled = !isMuted;
+    setIsMuted(!isMuted);
+  };
+
+  const handleVideoOff = () => {
+    localStream.getVideoTracks()[0].enabled = !isVideoOff;
+    setIsVideoOff(!isVideoOff);
+  };
+
+  const joinRoom = async () => {
+    socket.emit('joinRoom', { room, user: userInfo.name });
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+      setCallStatus('Joined room, you can now call other users');
+    } catch (error) {
+      console.error('Error accessing media devices.', error);
+    }
+  };
+
+  const filteredUsers = users.filter((user) => user.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
   return (
     <ChatContainer>
-      <Title>Video Chat</Title>
+      <ToastContainer />
+      <Title>Welcome to ConnectNow</Title>
+      <UserListContainer>
+        <SearchInput
+          type="text"
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <Button onClick={joinRoom}>Join Room</Button>
+        {loading ? (
+          <ClipLoader color="#007bff" loading={loading} size={50} />
+        ) : (
+          <UserList>
+            {filteredUsers.map((user) => (
+              <UserItem key={user._id}>
+                <p>{user.name}</p>
+                <Button onClick={() => startCall(user.name)}>Call</Button>
+              </UserItem>
+            ))}
+          </UserList>
+        )}
+      </UserListContainer>
       <div>
-        <Button onClick={() => startCall('someUser')}>Start Call</Button>
-        <Button onClick={endCall}>End Call</Button>
+        <Video stream={localStream} muted />
+        <Video stream={remoteStream} />
+        <CallStatus connected={callStatus === 'Call connected'}>{callStatus}</CallStatus>
+        <div>
+          <Button onClick={handleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
+          <Button onClick={handleVideoOff}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
+          <Button onClick={endCall}>End Call</Button>
+        </div>
         {incomingCall && (
           <IncomingCall>
             <p>Incoming call from {incomingCallUser}</p>
@@ -327,48 +382,19 @@ const Chat = () => {
             <Button onClick={rejectCall}>Reject</Button>
           </IncomingCall>
         )}
-        <CallStatus connected={!!peerConnection}>{callStatus}</CallStatus>
-        <Video localStream={localStream} remoteStream={remoteStream} />
-        <UserListContainer>
-          <SearchInput
-            type="text"
-            placeholder="Search users"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {loading ? (
-            <ClipLoader />
-          ) : (
-            <UserList>
-              {users.filter(user => user.name.toLowerCase().includes(searchTerm.toLowerCase())).map(user => (
-                <UserItem key={user.name}>
-                  <p>{user.name}</p>
-                  <Button onClick={() => startCall(user.name)}>Call</Button>
-                </UserItem>
-              ))}
-            </UserList>
-          )}
-        </UserListContainer>
         <MessageContainer>
-          <MessagesList>
+          <MessagesList ref={messageRef}>
             {messages.map((msg, index) => (
               <Message key={index} user={msg.user} text={msg.text} />
             ))}
           </MessagesList>
-          <MessageInput
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message..."
-          />
+          <MessageInput value={message} onChange={(e) => setMessage(e.target.value)} />
           <Button onClick={handleSendMessage}>Send</Button>
-          <FileInput type="file" onChange={(e) => setFile(e.target.files[0])} />
-          <Button onClick={handleFileSend}>Send File</Button>
+          <FileInput type="file" onChange={handleSendFile} />
         </MessageContainer>
-        <ToastContainer />
       </div>
     </ChatContainer>
   );
 };
 
 export default Chat;
-
