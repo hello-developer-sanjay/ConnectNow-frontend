@@ -146,6 +146,7 @@ const Chat = () => {
   const [file, setFile] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [offer, setOffer] = useState(null);
   const messageRef = useRef();
 
   const dispatch = useDispatch();
@@ -187,6 +188,7 @@ const Chat = () => {
 
           await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
           setPeerConnection(newPeerConnection);
+          setOffer(offer);
           setIncomingCall(true);
           setIncomingCallUser(caller);
         }
@@ -275,7 +277,9 @@ const Chat = () => {
     if (peerConnection) {
       peerConnection.close();
       setPeerConnection(null);
+      setRemoteStream(new MediaStream());
     }
+
     socket.emit('callDisconnected', { room });
     setCallStatus('');
   };
