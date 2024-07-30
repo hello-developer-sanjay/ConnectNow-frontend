@@ -129,9 +129,19 @@ const FileInput = styled.input`
   margin-bottom: 1rem;
 `;
 
+const RoomInput = styled.input`
+  width: 100%;
+  max-width: 300px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+`;
+
 const Chat = () => {
   const [socket, setSocket] = useState(null);
   const [room, setRoom] = useState('common'); // Default room name "common"
+  const [roomName, setRoomName] = useState('');
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(new MediaStream());
   const [peerConnection, setPeerConnection] = useState(null);
@@ -255,17 +265,7 @@ const Chat = () => {
     };
     return new RTCPeerConnection(configuration);
   };
-  const joinRoom = async () => {
-    socket.emit('joinRoom', { room, user: userInfo.name });
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setLocalStream(stream);
-      setCallStatus('Joined room, you can now call other users');
-    } catch (error) {
-      console.error('Error accessing media devices.', error);
-    }
-  };
   const startCall = async (userToCall) => {
     const newPeerConnection = createPeerConnection();
 
@@ -362,6 +362,16 @@ const Chat = () => {
     localStream.getVideoTracks().forEach((track) => (track.enabled = !isVideoOff));
   };
 
+  const joinRoom = () => {
+    if (roomName.trim()) {
+      setRoom(roomName.trim());
+      socket.emit('joinRoom', { room: roomName.trim(), user: userInfo.name });
+      setRoomName('');
+    } else {
+      toast.error('Please enter a valid room name');
+    }
+  };
+
   return (
     <ChatContainer>
       <Title>Chat Room</Title>
@@ -372,8 +382,6 @@ const Chat = () => {
           value={searchTerm}
           onChange={handleSearchChange}
         />
-                <Button onClick={joinRoom}>Join Room</Button>
-
         <UserList>
           {loading ? (
             <ClipLoader size={50} color="#007bff" />
@@ -388,6 +396,15 @@ const Chat = () => {
         </UserList>
       </UserListContainer>
       <div>
+        <div>
+          <RoomInput
+            type="text"
+            placeholder="Enter room name"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+          />
+          <Button onClick={joinRoom}>Join Room</Button>
+        </div>
         <div>
           <Video stream={localStream} muted={true} />
           <Video stream={remoteStream} muted={false} />
