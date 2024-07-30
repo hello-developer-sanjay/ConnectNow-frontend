@@ -186,9 +186,6 @@ const Chat = () => {
           };
 
           await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-          const answer = await newPeerConnection.createAnswer();
-          await newPeerConnection.setLocalDescription(answer);
-
           setPeerConnection(newPeerConnection);
           setIncomingCall(true);
           setIncomingCallUser(caller);
@@ -259,6 +256,7 @@ const Chat = () => {
   };
 
   const answerCall = async () => {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
