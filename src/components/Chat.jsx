@@ -196,6 +196,7 @@ const Chat = () => {
 
       socket.on('videoAnswer', async ({ answer }) => {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        setCallStatus('Call connected');
       });
 
       socket.on('iceCandidate', async ({ candidate }) => {
@@ -279,7 +280,6 @@ const Chat = () => {
       setPeerConnection(null);
       setRemoteStream(new MediaStream());
     }
-
     socket.emit('callDisconnected', { room });
     setCallStatus('Call ended');
   };
@@ -295,6 +295,10 @@ const Chat = () => {
   const sendMessage = () => {
     if (message.trim() !== '') {
       socket.emit('message', { room, sender: userInfo.name, text: message });
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { sender: userInfo.name, text: message },
+      ]);
       setMessage('');
     }
   };
@@ -342,7 +346,11 @@ const Chat = () => {
     }
   };
 
-  const joinRoom = () => {
+  const joinRoom = async () => {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+    }
     socket.emit('joinRoom', { room, user: userInfo.name });
     setCallStatus(`Joined room: ${room}`);
   };
