@@ -189,35 +189,47 @@ const Chat = () => {
   useEffect(() => {
     if (socket) {
       socket.on('videoOffer', async ({ offer, caller, userToCall }) => {
+        console.log('Received video offer:', offer, caller, userToCall);
+        toast.info(`Received video offer from ${caller}`);
+
         if (userToCall === userInfo.name) {
           const newPeerConnection = createPeerConnection();
-
-          newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
           const answer = await newPeerConnection.createAnswer();
-          newPeerConnection.setLocalDescription(answer);
+          await newPeerConnection.setLocalDescription(answer);
 
           socket.emit('videoAnswer', { answer, caller: userInfo.name });
 
           setIncomingCall(true);
           setIncomingCallUser(caller);
+          setCallStatus(`Incoming call from ${caller}`);
         }
       });
 
       socket.on('videoAnswer', ({ answer }) => {
+        console.log('Received video answer:', answer);
+        toast.info('Received video answer');
         peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
       });
 
       socket.on('newIceCandidate', ({ candidate }) => {
+        console.log('Received new ICE candidate:', candidate);
+        toast.info('Received new ICE candidate');
         const newCandidate = new RTCIceCandidate(candidate);
-        peerConnection.addIceCandidate(newCandidate);
+        peerConnection.addIceCandidate(newCandidate).catch((error) => {
+          console.error('Error adding received ICE candidate:', error);
+        });
       });
 
       socket.on('user-disconnected', () => {
+        console.log('User disconnected');
+        toast.info('User disconnected');
         handleCallEnd();
       });
 
       socket.on('message', (message) => {
+        console.log('Received message:', message);
         setMessages((prevMessages) => [...prevMessages, message]);
       });
     }
@@ -226,6 +238,7 @@ const Chat = () => {
   useEffect(() => {
     if (peerConnection) {
       peerConnection.ontrack = (event) => {
+        console.log('Received remote track:', event.track);
         setRemoteStream((prevStream) => {
           prevStream.addTrack(event.track);
           return prevStream;
@@ -234,6 +247,8 @@ const Chat = () => {
 
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
+          console.log('Sending ICE candidate:', event.candidate);
+          toast.info('Sending ICE candidate');
           socket.emit('newIceCandidate', { candidate: event.candidate });
         }
       };
@@ -256,7 +271,7 @@ const Chat = () => {
     });
 
     setPeerConnection(newPeerConnection);
-
+    console.log('Created new RTCPeerConnection');
     return newPeerConnection;
   };
 
@@ -268,7 +283,10 @@ const Chat = () => {
 
     const newPeerConnection = createPeerConnection();
     const offer = await newPeerConnection.createOffer();
-    newPeerConnection.setLocalDescription(offer);
+    await newPeerConnection.setLocalDescription(offer);
+
+    console.log('Sending video offer:', offer);
+    toast.info(`Calling ${userToCall}...`);
 
     socket.emit('videoOffer', { offer, userToCall, caller: userInfo.name });
     setOffer(offer);
@@ -283,6 +301,8 @@ const Chat = () => {
       const answer = await newPeerConnection.createAnswer();
       await newPeerConnection.setLocalDescription(answer);
 
+      console.log('Sending video answer:', answer);
+      toast.info('Sending video answer');
       socket.emit('videoAnswer', { answer, caller: incomingCallUser });
 
       setCallStatus(`Connected with ${incomingCallUser}`);
@@ -292,17 +312,20 @@ const Chat = () => {
   };
 
   const handleRejectCall = () => {
+    console.log('Rejecting call from:', incomingCallUser);
+    toast.info(`Rejected call from ${incomingCallUser}`);
     setIncomingCall(false);
     socket.emit('rejectCall', { caller: incomingCallUser });
   };
 
   const handleCallEnd = () => {
+    console.log('Ending call');
+    toast.info('Call ended');
     peerConnection.close();
     setPeerConnection(null);
     setRemoteStream(new MediaStream());
     setCallStatus('');
     setIncomingCall(false);
-    toast.info('Call ended.');
   };
 
   const handleToggleMute = () => {
@@ -310,6 +333,7 @@ const Chat = () => {
       track.enabled = !track.enabled;
     });
     setIsMuted((prevState) => !prevState);
+    toast.info(isMuted ? 'Unmuted' : 'Muted');
   };
 
   const handleToggleVideo = () => {
@@ -317,6 +341,7 @@ const Chat = () => {
       track.enabled = !track.enabled;
     });
     setIsVideoOff((prevState) => !prevState);
+    toast.info(isVideoOff ? 'Video turned on' : 'Video turned off');
   };
 
   const handleSendMessage = async (e) => {
@@ -333,8 +358,10 @@ const Chat = () => {
       await axios.post('https://connectnow-backend-24july.onrender.com/send', formData);
       setMessage('');
       setFile(null);
+      toast.info('Message sent');
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Error sending message');
     }
   };
 
