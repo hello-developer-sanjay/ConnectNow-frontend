@@ -147,7 +147,6 @@ const Chat = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [offer, setOffer] = useState(null);
-  const [iceCandidateBuffer, setIceCandidateBuffer] = useState([]);
   const messageRef = useRef();
 
   const dispatch = useDispatch();
@@ -178,8 +177,10 @@ const Chat = () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setLocalStream(stream);
+        console.log('Local stream set:', stream);
       } catch (error) {
         console.error('Error accessing media devices.', error);
+        toast.error('Error accessing media devices.');
       }
     };
 
@@ -199,6 +200,8 @@ const Chat = () => {
           const answer = await newPeerConnection.createAnswer();
           await newPeerConnection.setLocalDescription(answer);
 
+          console.log('Sending video answer:', answer);
+          toast.info('Sending video answer');
           socket.emit('videoAnswer', { answer, caller: userInfo.name });
 
           setIncomingCall(true);
@@ -207,10 +210,12 @@ const Chat = () => {
         }
       });
 
-      socket.on('videoAnswer', ({ answer }) => {
+      socket.on('videoAnswer', async ({ answer }) => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
-        peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        if (peerConnection) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        }
       });
 
       socket.on('newIceCandidate', ({ candidate }) => {
@@ -231,6 +236,11 @@ const Chat = () => {
       socket.on('message', (message) => {
         console.log('Received message:', message);
         setMessages((prevMessages) => [...prevMessages, message]);
+      });
+
+      socket.on('joinRoomConfirmation', ({ user, room }) => {
+        console.log(`${user} joined ${room}`);
+        toast.info(`${user} joined ${room}`);
       });
     }
   }, [socket, peerConnection]);
@@ -269,6 +279,22 @@ const Chat = () => {
         { urls: 'stun:stun4.l.google.com:19302' },
       ],
     });
+
+    newPeerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log('Sending ICE candidate:', event.candidate);
+        toast.info('Sending ICE candidate');
+        socket.emit('newIceCandidate', { candidate: event.candidate });
+      }
+    };
+
+    newPeerConnection.ontrack = (event) => {
+      console.log('Received remote track:', event.track);
+      setRemoteStream((prevStream) => {
+        prevStream.addTrack(event.track);
+        return prevStream;
+      });
+    };
 
     setPeerConnection(newPeerConnection);
     console.log('Created new RTCPeerConnection');
