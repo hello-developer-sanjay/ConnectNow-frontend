@@ -363,14 +363,14 @@ const Chat = () => {
 
   const toggleMute = () => {
     if (localStream) {
-      localStream.getAudioTracks()[0].enabled = isMuted;
+      localStream.getAudioTracks()[0].enabled = !isMuted;
       setIsMuted(!isMuted);
     }
   };
 
   const toggleVideo = () => {
     if (localStream) {
-      localStream.getVideoTracks()[0].enabled = isVideoOff;
+      localStream.getVideoTracks()[0].enabled = !isVideoOff;
       setIsVideoOff(!isVideoOff);
     }
   };
