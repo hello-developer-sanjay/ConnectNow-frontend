@@ -1,49 +1,30 @@
 import React, { useRef, useEffect } from 'react';
 
-const Video = ({ localStream, remoteStream }) => {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+const Video = ({ stream, muted }) => {
+  const videoRef = useRef(null);
 
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
+    const videoElement = videoRef.current;
+
+    if (videoElement && stream) {
+      videoElement.srcObject = stream;
     }
 
     return () => {
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
+      if (videoElement) {
+        videoElement.srcObject = null;
       }
     };
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-
-    return () => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
-      }
-    };
-  }, [remoteStream]);
+  }, [stream]);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-      <video
-        ref={localVideoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ width: '45%', height: 'auto' }}
-      />
-      <video
-        ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        style={{ width: '45%', height: 'auto' }}
-      />
-    </div>
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted={muted}
+      style={{ width: '100%', height: '100%' }}
+    />
   );
 };
 
