@@ -174,7 +174,14 @@ const Chat = () => {
   useEffect(() => {
     const initLocalStream = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
         setLocalStream(stream);
         console.log('Local stream set:', stream);
       } catch (error) {
@@ -276,6 +283,7 @@ const Chat = () => {
 
     const pc = new RTCPeerConnection(configuration);
 
+    // Add each track to the peer connection.
     localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
     setPeerConnection(pc);
 
