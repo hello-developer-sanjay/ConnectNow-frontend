@@ -321,15 +321,7 @@ const Chat = () => {
 
  const handleAcceptCall = async () => {
   if (offer) {
-    const newPeerConnection = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-      ],
-    });
+    const newPeerConnection = createPeerConnection();
 
     newPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -348,6 +340,11 @@ const Chat = () => {
 
     try {
       localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
+
+      if (newPeerConnection.signalingState === 'stable') {
+        console.log('Connection is already stable, cannot set remote offer');
+        return;
+      }
 
       await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await newPeerConnection.createAnswer();
