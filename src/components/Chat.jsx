@@ -320,33 +320,31 @@ const Chat = () => {
   };
 
 const handleAcceptCall = async () => {
-  if (offer) {
-    const newPeerConnection = createPeerConnection();
+  try {
+    if (offer) {
+      const newPeerConnection = createPeerConnection();
 
-    newPeerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
-        socket.emit('newIceCandidate', { candidate: event.candidate, room });
-      }
-    };
+      newPeerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('Sending ICE candidate:', event.candidate);
+          socket.emit('newIceCandidate', { candidate: event.candidate, room });
+        }
+      };
 
-    newPeerConnection.ontrack = (event) => {
-      console.log('Received remote track:', event.track);
-      setRemoteStream((prevStream) => {
-        prevStream.addTrack(event.track);
-        return prevStream;
-      });
-    };
+      newPeerConnection.ontrack = (event) => {
+        console.log('Received remote track:', event.track);
+        setRemoteStream((prevStream) => {
+          prevStream.addTrack(event.track);
+          return prevStream;
+        });
+      };
 
-    try {
       localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
 
-      if (newPeerConnection.signalingState !== 'have-remote-offer') {
-        console.log('Signaling state is not have-remote-offer, cannot set remote offer');
-        return;
-      }
-
+      // Set the remote offer
       await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+      // Create and set the local answer
       const answer = await newPeerConnection.createAnswer();
       await newPeerConnection.setLocalDescription(answer);
 
@@ -357,10 +355,10 @@ const handleAcceptCall = async () => {
       setPeerConnection(newPeerConnection);
       setIncomingCall(false);
       setOffer(null);
-    } catch (error) {
-      console.error('Error handling accept call:', error);
-      toast.error('Error accepting call.');
     }
+  } catch (error) {
+    console.error('Error handling accept call:', error);
+    toast.error('Error accepting call.');
   }
 };
   const handleRejectCall = () => {
