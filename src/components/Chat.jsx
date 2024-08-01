@@ -192,58 +192,70 @@ const Chat = () => {
       socket.on('videoOffer', async ({ offer, caller, userToCall }) => {
         console.log('Received video offer:', offer, caller, userToCall);
         toast.info(`Received video offer from ${caller}`);
-
+  
         if (userToCall === userInfo.name) {
           const newPeerConnection = createPeerConnection();
+          
+          // Ensure the connection is fresh
           await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
+  
           const answer = await newPeerConnection.createAnswer();
           await newPeerConnection.setLocalDescription(answer);
-
+  
           console.log('Sending video answer:', answer);
           toast.info('Sending video answer');
           socket.emit('videoAnswer', { answer, caller: userInfo.name });
-
+  
           setIncomingCall(true);
           setIncomingCallUser(caller);
           setCallStatus(`Incoming call from ${caller}`);
         }
       });
-
+  
       socket.on('videoAnswer', async ({ answer }) => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
         if (peerConnection) {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          try {
+            if (peerConnection.signalingState !== 'stable') {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            } else {
+              console.log('Peer connection is stable, skipping remote description.');
+            }
+          } catch (error) {
+            console.error('Error setting remote description:', error);
+          }
         }
       });
-
+  
       socket.on('newIceCandidate', ({ candidate }) => {
         console.log('Received new ICE candidate:', candidate);
         toast.info('Received new ICE candidate');
-        const newCandidate = new RTCIceCandidate(candidate);
-        peerConnection.addIceCandidate(newCandidate).catch((error) => {
-          console.error('Error adding received ICE candidate:', error);
-        });
+        if (peerConnection) {
+          peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((error) => {
+            console.error('Error adding received ICE candidate:', error);
+          });
+        }
       });
-
+  
       socket.on('user-disconnected', () => {
         console.log('User disconnected');
         toast.info('User disconnected');
         handleCallEnd();
       });
-
+  
       socket.on('message', (message) => {
         console.log('Received message:', message);
         setMessages((prevMessages) => [...prevMessages, message]);
       });
-
+  
       socket.on('joinRoomConfirmation', ({ user, room }) => {
         console.log(`${user} joined ${room}`);
         toast.info(`${user} joined ${room}`);
       });
     }
   }, [socket, peerConnection]);
+  
 
   useEffect(() => {
     if (peerConnection) {
