@@ -319,7 +319,7 @@ const Chat = () => {
     setCallStatus(`Calling ${userToCall}...`);
   };
 
- const handleAcceptCall = async () => {
+const handleAcceptCall = async () => {
   if (offer) {
     const newPeerConnection = createPeerConnection();
 
@@ -341,8 +341,8 @@ const Chat = () => {
     try {
       localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
 
-      if (newPeerConnection.signalingState === 'stable') {
-        console.log('Connection is already stable, cannot set remote offer');
+      if (newPeerConnection.signalingState !== 'have-remote-offer') {
+        console.log('Signaling state is not have-remote-offer, cannot set remote offer');
         return;
       }
 
@@ -363,7 +363,6 @@ const Chat = () => {
     }
   }
 };
-
   const handleRejectCall = () => {
     console.log('Rejecting call from:', incomingCallUser);
     toast.info(`Rejected call from ${incomingCallUser}`);
