@@ -37,7 +37,7 @@ const Button = styled.button`
   }
 `;
 
-const Video = ({ localStream, remoteStream, toggleMute, toggleVideo, isMuted, isVideoOff }) => {
+const Video = ({ localStream, remoteStream, handleToggleMute, handleToggleVideo, isMuted, isVideoOff }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
@@ -70,8 +70,8 @@ const Video = ({ localStream, remoteStream, toggleMute, toggleVideo, isMuted, is
         <VideoElement ref={remoteVideoRef} autoPlay />
       </div>
       <VideoControls>
-        <Button onClick={toggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
-        <Button onClick={toggleVideo}>{isVideoOff ? 'Show Video' : 'Hide Video'}</Button>
+        <Button onClick={handleToggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
+        <Button onClick={handleToggleVideo}>{isVideoOff ? 'Show Video' : 'Hide Video'}</Button>
       </VideoControls>
     </VideoContainer>
   );
