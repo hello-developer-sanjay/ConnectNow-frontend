@@ -270,205 +270,171 @@ const Chat = () => {
 
   const initiateCall = async (userToCall) => {
     if (!localStream) {
-      console.error('Local stream not available.');
+      console.error('Local stream not available');
       return;
     }
 
-    const configuration = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        // You can add more ICE servers here
-      ],
-    };
+    setPeerConnection(createPeerConnection());
 
-    const pc = new RTCPeerConnection(configuration);
+    const connection = peerConnection || createPeerConnection();
 
-    // Add each track to the peer connection.
-    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-    setPeerConnection(pc);
+    localStream.getTracks().forEach((track) => {
+      connection.addTrack(track, localStream);
+    });
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
-        socket.emit('newIceCandidate', { candidate: event.candidate, room });
-      }
-    };
+    const offer = await connection.createOffer();
+    await connection.setLocalDescription(offer);
 
-    pc.ontrack = (event) => {
-      console.log('Received remote track:', event.streams[0]);
-      setRemoteStream(event.streams[0]);
-    };
+    socket.emit('videoCall', { offer, userToCall, caller: userInfo.name, room });
 
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('videoOffer', { offer, caller: userInfo.name, userToCall });
-      console.log('Sent video offer:', offer);
-      toast.info('Sent video offer');
-    } catch (error) {
-      console.error('Error creating offer:', error);
-    }
+    setCallStatus(`Calling ${userToCall}...`);
   };
 
-  const answerCall = async () => {
-    if (!offer || !localStream) {
-      console.error('No incoming offer or local stream not available.');
-      return;
-    }
+  const handleIncomingCallAccept = async () => {
+    const connection = peerConnection || createPeerConnection();
 
-    const configuration = {
+    localStream.getTracks().forEach((track) => {
+      connection.addTrack(track, localStream);
+    });
+
+    await connection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await connection.createAnswer();
+    await connection.setLocalDescription(answer);
+
+    socket.emit('videoAnswer', { answer, caller: incomingCallUser });
+
+    setIncomingCall(false);
+    setCallStatus(`In call with ${incomingCallUser}`);
+  };
+
+  const createPeerConnection = () => {
+    const connection = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        // Add more ICE servers if needed
+        {
+          urls: 'stun:stun.l.google.com:19302',
+        },
       ],
-    };
+    });
 
-    const pc = new RTCPeerConnection(configuration);
-    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-    setPeerConnection(pc);
-
-    pc.onicecandidate = (event) => {
+    connection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
         socket.emit('newIceCandidate', { candidate: event.candidate, room });
       }
     };
 
-    pc.ontrack = (event) => {
-      console.log('Received remote track:', event.streams[0]);
-      setRemoteStream(event.streams[0]);
+    connection.ontrack = (event) => {
+      setRemoteStream((prevStream) => {
+        const newStream = new MediaStream(prevStream);
+        event.streams[0].getTracks().forEach((track) => newStream.addTrack(track));
+        return newStream;
+      });
     };
 
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('videoAnswer', { answer, room });
-      setIncomingCall(false);
-      setCallStatus(`In call with ${incomingCallUser}`);
-      console.log('Sent video answer:', answer);
-      toast.info('Sent video answer');
-    } catch (error) {
-      console.error('Error handling offer:', error);
-    }
+    setPeerConnection(connection);
+    return connection;
   };
 
   const handleCallEnd = () => {
     if (peerConnection) {
       peerConnection.close();
       setPeerConnection(null);
-      setRemoteStream(new MediaStream());
+      setCallStatus('Call ended');
     }
-    setCallStatus('');
-    setIncomingCall(false);
-    setIncomingCallUser('');
   };
 
-  const toggleMute = () => {
+  const handleMuteToggle = () => {
     if (localStream) {
-      localStream.getAudioTracks().forEach((track) => (track.enabled = !track.enabled));
+      localStream.getAudioTracks()[0].enabled = !isMuted;
       setIsMuted(!isMuted);
     }
   };
 
-  const toggleVideo = () => {
+  const handleVideoToggle = () => {
     if (localStream) {
-      localStream.getVideoTracks().forEach((track) => (track.enabled = !track.enabled));
+      localStream.getVideoTracks()[0].enabled = !isVideoOff;
       setIsVideoOff(!isVideoOff);
     }
   };
 
-  const sendMessage = (e) => {
-    e.preventDefault();
+  const handleSendMessage = async () => {
     if (message.trim()) {
-      const newMessage = { text: message, sender: userInfo.name, room };
-      socket.emit('message', newMessage);
+      const newMessage = { user: userInfo.name, text: message.trim(), room };
       setMessages([...messages, newMessage]);
       setMessage('');
+      messageRef.current.scrollIntoView({ behavior: 'smooth' });
+
+      socket.emit('message', newMessage);
+
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await axios.post('http://localhost:5000/upload', formData);
+        } catch (error) {
+          console.error('Error uploading file:', error);
+        }
+      }
     }
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <ChatContainer>
-      <Title>Chat Room</Title>
+      <Title>ConnectNow</Title>
       <UserListContainer>
         <SearchInput
           type="text"
-          placeholder="Search users..."
+          placeholder="Search for a user"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <UserList>
-          {loading ? (
-            <ClipLoader size={150} />
-          ) : (
-            filteredUsers.map((user) => (
-              <UserItem key={user._id}>
-                <span>{user.name}</span>
-                <Button onClick={() => initiateCall(user.name)}>Call</Button>
-              </UserItem>
-            ))
-          )}
-        </UserList>
+        {loading ? (
+          <ClipLoader size={50} color={"#007bff"} />
+        ) : (
+          <UserList>
+            {users
+              .filter((user) =>
+                user.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((user) => (
+                <UserItem key={user._id}>
+                  <p>{user.name}</p>
+                  <Button onClick={() => initiateCall(user.name)}>Call</Button>
+                </UserItem>
+              ))}
+          </UserList>
+        )}
       </UserListContainer>
       <div>
-        <Video localStream={localStream} remoteStream={remoteStream} isMuted={isMuted} />
-        <Button onClick={toggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
-        <Button onClick={toggleVideo}>{isVideoOff ? 'Turn Video On' : 'Turn Video Off'}</Button>
-        <Button onClick={handleCallEnd}>End Call</Button>
-        <CallStatus connected={!!callStatus}>{callStatus}</CallStatus>
+        {callStatus && <CallStatus connected={!!peerConnection}>{callStatus}</CallStatus>}
         {incomingCall && (
           <IncomingCall>
             <p>{incomingCallUser} is calling...</p>
-            <Button onClick={answerCall}>Answer</Button>
-            <Button onClick={() => setIncomingCall(false)}>Reject</Button>
+            <Button onClick={handleIncomingCallAccept}>Accept</Button>
           </IncomingCall>
         )}
-        <MessageContainer>
-          <MessageInput
-            rows="4"
-            placeholder="Type a message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            ref={messageRef}
-          />
-          <Button onClick={sendMessage}>Send</Button>
-        </MessageContainer>
-        <MessagesList>
+        <Video stream={localStream} muted />
+        <Video stream={remoteStream} />
+        <Button onClick={handleMuteToggle}>{isMuted ? 'Unmute' : 'Mute'}</Button>
+        <Button onClick={handleVideoToggle}>
+          {isVideoOff ? 'Turn Video On' : 'Turn Video Off'}
+        </Button>
+        <Button onClick={handleCallEnd}>End Call</Button>
+      </div>
+      <MessageContainer>
+        <MessageInput
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type a message"
+        />
+        <FileInput type="file" onChange={(e) => setFile(e.target.files[0])} />
+        <Button onClick={handleSendMessage}>Send</Button>
+        <MessagesList ref={messageRef}>
           {messages.map((msg, index) => (
             <Message key={index} message={msg} />
           ))}
         </MessagesList>
-        <FileInput
-          type="file"
-          onChange={(e) => {
-            setFile(e.target.files[0]);
-          }}
-        />
-        <Button
-          onClick={async () => {
-            if (file) {
-              const formData = new FormData();
-              formData.append('file', file);
-              try {
-                const response = await axios.post('https://connectnow-backend-24july.onrender.com/upload', formData);
-                toast.success('File uploaded successfully');
-                console.log('File uploaded:', response.data);
-              } catch (error) {
-                console.error('Error uploading file:', error);
-                toast.error('Error uploading file');
-              }
-            }
-          }}
-        >
-          Upload
-        </Button>
-      </div>
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
+      </MessageContainer>
+      <ToastContainer />
     </ChatContainer>
   );
 };
