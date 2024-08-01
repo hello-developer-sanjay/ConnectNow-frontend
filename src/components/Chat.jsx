@@ -319,45 +319,53 @@ const Chat = () => {
     setCallStatus(`Calling ${userToCall}...`);
   };
 
-  const handleAcceptCall = async () => {
-    if (offer) {
-      const newPeerConnection = createPeerConnection();
-      localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
-  
-      newPeerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log('Sending ICE candidate:', event.candidate);
-          socket.emit('newIceCandidate', { candidate: event.candidate, room });
-        }
-      };
-  
-      newPeerConnection.ontrack = (event) => {
-        console.log('Received remote track:', event.track);
-        setRemoteStream((prevStream) => {
-          prevStream.addTrack(event.track);
-          return prevStream;
-        });
-      };
-  
-      try {
-        await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await newPeerConnection.createAnswer();
-        await newPeerConnection.setLocalDescription(answer);
-  
-        console.log('Sending video answer:', answer);
-        socket.emit('videoAnswer', { answer, caller: incomingCallUser });
-  
-        setCallStatus(`Connected with ${incomingCallUser}`);
-        setPeerConnection(newPeerConnection);
-        setIncomingCall(false);
-        setOffer(null);
-      } catch (error) {
-        console.error('Error handling accept call:', error);
-        toast.error('Error accepting call.');
+ const handleAcceptCall = async () => {
+  if (offer) {
+    const newPeerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+      ],
+    });
+
+    newPeerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log('Sending ICE candidate:', event.candidate);
+        socket.emit('newIceCandidate', { candidate: event.candidate, room });
       }
+    };
+
+    newPeerConnection.ontrack = (event) => {
+      console.log('Received remote track:', event.track);
+      setRemoteStream((prevStream) => {
+        prevStream.addTrack(event.track);
+        return prevStream;
+      });
+    };
+
+    try {
+      localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
+
+      await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await newPeerConnection.createAnswer();
+      await newPeerConnection.setLocalDescription(answer);
+
+      console.log('Sending video answer:', answer);
+      socket.emit('videoAnswer', { answer, caller: incomingCallUser });
+
+      setCallStatus(`Connected with ${incomingCallUser}`);
+      setPeerConnection(newPeerConnection);
+      setIncomingCall(false);
+      setOffer(null);
+    } catch (error) {
+      console.error('Error handling accept call:', error);
+      toast.error('Error accepting call.');
     }
-  };
-  
+  }
+};
 
   const handleRejectCall = () => {
     console.log('Rejecting call from:', incomingCallUser);
