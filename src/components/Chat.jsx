@@ -193,6 +193,7 @@ const Chat = () => {
     initLocalStream();
   }, []);
 
+
   useEffect(() => {
     if (socket) {
       socket.on('videoOffer', async ({ offer, caller, userToCall }) => {
@@ -210,6 +211,7 @@ const Chat = () => {
       socket.on('videoAnswer', async ({ answer }) => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
+
         if (peerConnection && peerConnection.signalingState !== 'stable') {
           try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
@@ -225,6 +227,7 @@ const Chat = () => {
       socket.on('newIceCandidate', async ({ candidate }) => {
         console.log('Received new ICE candidate:', candidate);
         toast.info('Received new ICE candidate');
+
         if (peerConnection) {
           try {
             await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -284,8 +287,10 @@ const Chat = () => {
     const newPeerConnection = new RTCPeerConnection(configuration);
     setPeerConnection(newPeerConnection);
 
-    newPeerConnection.addTrack(localStream.getTracks()[0], localStream);
-    newPeerConnection.addTrack(localStream.getTracks()[1], localStream);
+    // Add audio and video tracks to peer connection
+    localStream.getTracks().forEach((track) => {
+      newPeerConnection.addTrack(track, localStream);
+    });
 
     try {
       const offer = await newPeerConnection.createOffer();
@@ -318,8 +323,10 @@ const Chat = () => {
     const newPeerConnection = new RTCPeerConnection(configuration);
     setPeerConnection(newPeerConnection);
 
-    newPeerConnection.addTrack(localStream.getTracks()[0], localStream);
-    newPeerConnection.addTrack(localStream.getTracks()[1], localStream);
+    // Add audio and video tracks to peer connection
+    localStream.getTracks().forEach((track) => {
+      newPeerConnection.addTrack(track, localStream);
+    });
 
     try {
       await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
@@ -333,6 +340,7 @@ const Chat = () => {
       console.error('Error creating and sending video answer:', error);
     }
   };
+
 
   const handleCallEnd = () => {
     if (peerConnection) {
