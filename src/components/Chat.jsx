@@ -215,18 +215,17 @@ const Chat = () => {
       socket.on('videoAnswer', async ({ answer }) => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
-        if (peerConnection) {
+        if (peerConnection && peerConnection.signalingState !== 'stable') {
           try {
-            if (peerConnection.signalingState !== 'stable') {
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            } else {
-              console.log('Peer connection is stable, skipping remote description.');
-            }
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
           } catch (error) {
-            console.error('Error setting remote description:', error);
+            console.error('Error setting remote description for answer:', error);
           }
+        } else {
+          console.error('No peer connection or peer connection is in a stable state');
         }
       });
+      
   
       socket.on('newIceCandidate', ({ candidate }) => {
         console.log('Received new ICE candidate:', candidate);
@@ -330,58 +329,54 @@ const Chat = () => {
     setOffer(offer);
     setCallStatus(`Calling ${userToCall}...`);
   };
-
-const handleAcceptCall = async () => {
-  if (!offer) {
-    console.error('No offer to accept.');
-    return;
-  }
-
-  try {
-    // Create a new peer connection
-    const newPeerConnection = createPeerConnection();
-
-    newPeerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
-        socket.emit('newIceCandidate', { candidate: event.candidate, room });
-      }
-    };
-
-    newPeerConnection.ontrack = (event) => {
-      console.log('Received remote track:', event.track);
-      setRemoteStream((prevStream) => {
-        prevStream.addTrack(event.track);
-        return prevStream;
-      });
-    };
-
-    // Add local tracks to the peer connection
-    localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
-
-    // Check the signaling state before setting remote description
-    if (newPeerConnection.signalingState === 'stable') {
-      console.log('Connection is already stable, cannot set remote offer');
+  const handleAcceptCall = async () => {
+    if (!offer) {
+      console.error('No offer to accept.');
       return;
     }
-
-    // Set the remote offer and create an answer
-    await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await newPeerConnection.createAnswer();
-    await newPeerConnection.setLocalDescription(answer);
-
-    console.log('Sending video answer:', answer);
-    socket.emit('videoAnswer', { answer, caller: incomingCallUser });
-
-    setCallStatus(`Connected with ${incomingCallUser}`);
-    setPeerConnection(newPeerConnection);
-    setIncomingCall(false);
-    setOffer(null);
-  } catch (error) {
-    console.error('Error handling accept call:', error);
-    toast.error('Error accepting call.');
-  }
-};
+  
+    try {
+      // Create a new peer connection
+      const newPeerConnection = createPeerConnection();
+  
+      newPeerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('Sending ICE candidate:', event.candidate);
+          socket.emit('newIceCandidate', { candidate: event.candidate, room });
+        }
+      };
+  
+      newPeerConnection.ontrack = (event) => {
+        console.log('Received remote track:', event.track);
+        setRemoteStream((prevStream) => {
+          prevStream.addTrack(event.track);
+          return prevStream;
+        });
+      };
+  
+      // Add local tracks to the peer connection
+      localStream.getTracks().forEach((track) => newPeerConnection.addTrack(track, localStream));
+  
+      // Set the remote offer
+      await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  
+      // Create and set local description
+      const answer = await newPeerConnection.createAnswer();
+      await newPeerConnection.setLocalDescription(answer);
+  
+      console.log('Sending video answer:', answer);
+      socket.emit('videoAnswer', { answer, caller: incomingCallUser });
+  
+      setCallStatus(`Connected with ${incomingCallUser}`);
+      setPeerConnection(newPeerConnection);
+      setIncomingCall(false);
+      setOffer(null);
+    } catch (error) {
+      console.error('Error handling accept call:', error);
+      toast.error('Error accepting call.');
+    }
+  };
+  
   const handleRejectCall = () => {
     console.log('Rejecting call from:', incomingCallUser);
     toast.info(`Rejected call from ${incomingCallUser}`);
