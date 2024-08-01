@@ -1,21 +1,24 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  height: 100%;
+  margin: 1rem;
 `;
 
 const VideoElement = styled.video`
   width: 100%;
-  height: 100%;
   max-width: 600px;
   border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  border-radius: 8px;
+`;
+
+const VideoControls = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
 `;
 
 const Button = styled.button`
@@ -34,33 +37,42 @@ const Button = styled.button`
   }
 `;
 
-const Video = ({ localStream, remoteStream, handleCallEnd, handleMuteToggle, handleVideoToggle, isMuted, isVideoOff }) => {
+const Video = ({ localStream, remoteStream, toggleMute, toggleVideo, isMuted, isVideoOff }) => {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch((error) => {
+        console.error('Error playing local video:', error);
+      });
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch((error) => {
+        console.error('Error playing remote video:', error);
+      });
+    }
+  }, [remoteStream]);
+
   return (
     <VideoContainer>
-      <VideoElement
-        ref={(video) => {
-          if (video && localStream) {
-            video.srcObject = localStream;
-          }
-        }}
-        autoPlay
-        muted
-      />
-      <VideoElement
-        ref={(video) => {
-          if (video && remoteStream) {
-            video.srcObject = remoteStream;
-          }
-        }}
-        autoPlay
-      />
-      <Button onClick={handleCallEnd}>End Call</Button>
-      <Button onClick={handleMuteToggle}>
-        {isMuted ? 'Unmute' : 'Mute'}
-      </Button>
-      <Button onClick={handleVideoToggle}>
-        {isVideoOff ? 'Turn Video On' : 'Turn Video Off'}
-      </Button>
+      <div>
+        <h2>Local Video</h2>
+        <VideoElement ref={localVideoRef} muted autoPlay />
+      </div>
+      <div>
+        <h2>Remote Video</h2>
+        <VideoElement ref={remoteVideoRef} autoPlay />
+      </div>
+      <VideoControls>
+        <Button onClick={toggleMute}>{isMuted ? 'Unmute' : 'Mute'}</Button>
+        <Button onClick={toggleVideo}>{isVideoOff ? 'Show Video' : 'Hide Video'}</Button>
+      </VideoControls>
     </VideoContainer>
   );
 };
