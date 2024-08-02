@@ -283,28 +283,29 @@ const processQueuedIceCandidates = async () => {
   }
 };
 
-  const handleAcceptCall = async () => {
-    console.log('Accepting call from:', incomingCallUser);
-    setIncomingCall(false);
+const handleAcceptCall = async () => {
+  console.log('Accepting call from:', incomingCallUser);
+  setIncomingCall(false);
+  setCallStatus(`In call with ${incomingCallUser}`);
+
+  const pc = createPeerConnection();
+  setPeerConnection(pc);
+
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    console.log('Set remote description with offer');
+    processQueuedIceCandidates();
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    console.log('Created and set local description with answer');
+
+    socket.emit('videoAnswer', { answer, caller: userInfo.name });
     setCallStatus(`In call with ${incomingCallUser}`);
+  } catch (error) {
+    console.error('Error accepting call:', error);
+  }
+};
 
-    const pc = createPeerConnection();
-    setPeerConnection(pc);
-
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      console.log('Set remote description with offer');
-      processQueuedIceCandidates();
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      console.log('Created and set local description with answer');
-
-      socket.emit('videoAnswer', { answer, caller: userInfo.name });
-      setCallStatus(`In call with ${incomingCallUser}`);
-    } catch (error) {
-      console.error('Error accepting call:', error);
-    }
-  };
 
   const handleRejectCall = () => {
     console.log('Rejecting call from:', incomingCallUser);
@@ -318,25 +319,27 @@ const processQueuedIceCandidates = async () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
-
+  
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('Generated local ICE candidate:', event.candidate);
         socket.emit('newIceCandidate', { candidate: event.candidate });
       }
     };
-
+  
     pc.ontrack = (event) => {
       console.log('Received remote track:', event.streams[0]);
       const [remoteStream] = event.streams;
       setRemoteStream(remoteStream);
     };
-
+  
     if (localStream) {
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-      console.log('Added local tracks to peer connection');
+      localStream.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream);
+        console.log(`Added ${track.kind} track to peer connection`);
+      });
     }
-
+  
     return pc;
   };
 
