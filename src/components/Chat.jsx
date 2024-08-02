@@ -294,16 +294,15 @@ const Chat = () => {
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote track:', event.track);
-      const remoteStream = event.streams[0];
-      if (remoteStream.getAudioTracks().length > 0) {
-          console.log('Remote audio track found.');
-      } else {
-          console.warn('No remote audio track found.');
-      }
-      setRemoteStream(remoteStream);
-  };
-  
+        console.log('Received remote track:', event.track);
+        const remoteStream = event.streams[0];
+        if (remoteStream.getAudioTracks().length > 0) {
+            console.log('Remote audio track found.');
+        } else {
+            console.warn('No remote audio track found.');
+        }
+        setRemoteStream(remoteStream);
+    };
 
     pc.onnegotiationneeded = async () => {
         console.log('Negotiation needed');
@@ -311,8 +310,11 @@ const Chat = () => {
 
     if (localStream) {
         localStream.getTracks().forEach((track) => {
-            console.log('Adding track:', track);
-            pc.addTrack(track, localStream);
+            // Add a check here
+            if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+                console.log('Adding track:', track);
+                pc.addTrack(track, localStream);
+            }
         });
     }
 
@@ -320,6 +322,7 @@ const Chat = () => {
 
     return pc;
 };
+
 
 
 const handleCall = async (userToCall) => {
@@ -360,6 +363,7 @@ const handleCall = async (userToCall) => {
       toast.error('Error creating offer.');
   }
 };
+
 
 
 const handleAnswerCall = async () => {
