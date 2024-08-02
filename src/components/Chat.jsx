@@ -267,18 +267,24 @@ const Chat = () => {
     }
   }, [socket, userInfo, peerConnection, room]);
 
-  const processQueuedIceCandidates = async () => {
-    console.log('Processing queued ICE candidates:', iceCandidatesQueue.current);
-    for (const candidate of iceCandidatesQueue.current) {
-      try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log('Added ICE candidate successfully');
-      } catch (error) {
-        console.error('Error adding queued ICE candidate:', error);
-      }
+useEffect(() => {
+  if (peerConnection) {
+    processQueuedIceCandidates(); // Process any queued ICE candidates when the peer connection is ready
+  }
+}, [peerConnection]);
+
+// Function to process queued ICE candidates
+const processQueuedIceCandidates = async () => {
+  console.log('Processing queued ICE candidates:', iceCandidatesQueue.current);
+  for (const candidate of iceCandidatesQueue.current) {
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (error) {
+      console.error('Error adding queued ICE candidate:', error);
     }
-    iceCandidatesQueue.current = [];
-  };
+  }
+  iceCandidatesQueue.current = [];
+};
 
   const handleCallEnd = () => {
     console.log('Call ended');
