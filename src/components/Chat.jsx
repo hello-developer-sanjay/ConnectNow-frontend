@@ -267,17 +267,18 @@ const Chat = () => {
     }
   }, [socket, userInfo, peerConnection, room]);
 
-  const processQueuedIceCandidates = async () => {
+  const processQueuedIceCandidates = () => {
     console.log('Processing queued ICE candidates:', iceCandidatesQueue.current);
-    for (const candidate of iceCandidatesQueue.current) {
+    iceCandidatesQueue.current.forEach((iceCandidate) => {
       try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        peerConnection.addIceCandidate(new RTCIceCandidate(iceCandidate));
       } catch (error) {
         console.error('Error adding queued ICE candidate:', error);
       }
-    }
+    });
     iceCandidatesQueue.current = [];
   };
+  
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
@@ -300,10 +301,10 @@ const Chat = () => {
 
     pc.ontrack = (event) => {
       console.log('Received remote track:', event.streams[0]);
-      event.streams[0].getTracks().forEach((track) => {
-        console.log('Adding track to remote stream:', track);
-        remoteStream.addTrack(track);
-      });
+      const [remoteAudioTrack] = event.streams[0].getAudioTracks();
+      console.log('Remote audio track:', remoteAudioTrack);
+  
+      remoteStream.addTrack(remoteAudioTrack);
       setRemoteStream(remoteStream);
     };
 
