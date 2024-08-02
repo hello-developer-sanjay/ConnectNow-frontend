@@ -301,6 +301,7 @@ const Chat = () => {
     pc.ontrack = (event) => {
       console.log('Received remote track:', event.streams[0]);
       event.streams[0].getTracks().forEach((track) => {
+        console.log('Adding track to remote stream:', track);
         remoteStream.addTrack(track);
       });
       setRemoteStream(remoteStream);
@@ -319,6 +320,7 @@ const Chat = () => {
     setPeerConnection(pc);
 
     localStream.getTracks().forEach((track) => {
+      console.log('Adding local track to peer connection:', track);
       pc.addTrack(track, localStream);
     });
 
@@ -348,6 +350,7 @@ const Chat = () => {
     setPeerConnection(pc);
 
     localStream.getTracks().forEach((track) => {
+      console.log('Adding local track to peer connection:', track);
       pc.addTrack(track, localStream);
     });
 
@@ -428,6 +431,7 @@ const Chat = () => {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
+        console.log('Mute status:', !audioTrack.enabled);
       }
     }
   };
@@ -438,6 +442,7 @@ const Chat = () => {
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoOff(!videoTrack.enabled);
+        console.log('Video status:', !videoTrack.enabled);
       }
     }
   };
