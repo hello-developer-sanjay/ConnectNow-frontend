@@ -1,23 +1,21 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 1rem 0;
-  width: 100%;
+  justify-content: space-between;
+  margin-top: 1rem;
 `;
 
-const StyledVideo = styled.video`
-  width: 45%;
-  max-width: 600px;
+const VideoBox = styled.video`
+  width: 48%;
+  height: auto;
   border: 2px solid #ccc;
-  border-radius: 8px;
-  margin: 0 0.5rem;
+  border-radius: 4px;
+  background-color: #000;
 `;
 
-const Video = ({ localStream, remoteStream, isMuted, isVideoOff }) => {
+const Video = ({ localStream, remoteStream }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
@@ -35,19 +33,8 @@ const Video = ({ localStream, remoteStream, isMuted, isVideoOff }) => {
 
   return (
     <VideoContainer>
-      <StyledVideo
-        ref={localVideoRef}
-        autoPlay
-        playsInline
-        muted={isMuted}
-        style={{ display: isVideoOff ? 'none' : 'block' }}
-      />
-      <StyledVideo
-        ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        muted={false} // Remote video should not be muted
-      />
+      <VideoBox ref={localVideoRef} autoPlay muted />
+      <VideoBox ref={remoteVideoRef} autoPlay />
     </VideoContainer>
   );
 };
