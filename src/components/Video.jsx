@@ -6,7 +6,6 @@ const VideoContainer = styled.div`
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
 `;
 
 const VideoElement = styled.video`
@@ -15,9 +14,9 @@ const VideoElement = styled.video`
   background-color: black;
 `;
 
-const Video = ({ localStream, remoteStreams }) => {
+const Video = ({ localStream, remoteStream }) => {
   const localVideoRef = useRef(null);
-  const remoteVideoRefs = useRef([]);
+  const remoteVideoRef = useRef(null);
 
   useEffect(() => {
     if (localVideoRef.current) {
@@ -26,24 +25,15 @@ const Video = ({ localStream, remoteStreams }) => {
   }, [localStream]);
 
   useEffect(() => {
-    remoteVideoRefs.current.forEach((videoRef, index) => {
-      if (videoRef && remoteStreams[index]) {
-        videoRef.srcObject = remoteStreams[index];
-      }
-    });
-  }, [remoteStreams]);
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   return (
     <VideoContainer>
       <VideoElement ref={localVideoRef} autoPlay playsInline muted />
-      {remoteStreams.map((stream, index) => (
-        <VideoElement
-          key={index}
-          ref={(el) => (remoteVideoRefs.current[index] = el)}
-          autoPlay
-          playsInline
-        />
-      ))}
+      <VideoElement ref={remoteVideoRef} autoPlay playsInline />
     </VideoContainer>
   );
 };
