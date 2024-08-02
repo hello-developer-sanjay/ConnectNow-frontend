@@ -3,39 +3,51 @@ import styled from 'styled-components';
 
 const VideoContainer = styled.div`
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
+  align-items: center;
   margin: 1rem 0;
+  width: 100%;
 `;
 
-const VideoBox = styled.video`
+const StyledVideo = styled.video`
   width: 45%;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background-color: black;
+  max-width: 600px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  margin: 0 0.5rem;
 `;
 
-const Video = ({ localStream, remoteStream }) => {
+const Video = ({ localStream, remoteStream, isMuted, isVideoOff }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
+    if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
-      console.log('Attached local stream to local video element:', localStream);
     }
   }, [localStream]);
 
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
+    if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
-      console.log('Attached remote stream to remote video element:', remoteStream);
     }
   }, [remoteStream]);
 
   return (
     <VideoContainer>
-      <VideoBox ref={localVideoRef} autoPlay muted />
-      <VideoBox ref={remoteVideoRef} autoPlay />
+      <StyledVideo
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted={isMuted}
+        style={{ display: isVideoOff ? 'none' : 'block' }}
+      />
+      <StyledVideo
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        muted={false} // Remote video should not be muted
+      />
     </VideoContainer>
   );
 };
