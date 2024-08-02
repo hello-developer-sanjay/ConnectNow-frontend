@@ -239,7 +239,7 @@ const Chat = () => {
                 console.error('Error adding ICE candidate:', error);
             }
         } else {
-            console.warn('No peer connection available');
+            iceCandidatesQueue.current.push(candidate);
         }
     });
     
@@ -272,6 +272,7 @@ const Chat = () => {
     for (const candidate of iceCandidatesQueue.current) {
       try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('Added ICE candidate successfully');
       } catch (error) {
         console.error('Error adding queued ICE candidate:', error);
       }
