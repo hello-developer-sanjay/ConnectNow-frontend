@@ -211,7 +211,7 @@ const Chat = () => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
 
-        if (peerConnections[caller] && peerConnections[caller].signalingState !== 'stable') {
+        if (peerConnections[caller] && peerConnections[caller].signalingState === 'have-local-offer') {
           try {
             await peerConnections[caller].setRemoteDescription(new RTCSessionDescription(answer));
             setCallStatus(`In call with ${incomingCallUser}`);
@@ -219,7 +219,7 @@ const Chat = () => {
             console.error('Error setting remote description for answer:', error);
           }
         } else {
-          console.error('No peer connection or peer connection is in a stable state');
+          console.error('Peer connection is not in the expected state for setting remote answer');
         }
       });
 
@@ -324,13 +324,19 @@ const Chat = () => {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit('videoAnswer', { answer, caller: incomingCallUser });
 
-      setPeerConnections((prevConnections) => ({
-        ...prevConnections,
-        [incomingCallUser]: pc,
-      }));
-      setCallStatus(`In call with ${incomingCallUser}`);
+      // Wait for the local description to be set before sending the answer
+      pc.onnegotiationneeded = async () => {
+        if (pc.signalingState === 'have-remote-offer') {
+          socket.emit('videoAnswer', { answer: pc.localDescription, caller: incomingCallUser });
+
+          setPeerConnections((prevConnections) => ({
+            ...prevConnections,
+            [incomingCallUser]: pc,
+          }));
+          setCallStatus(`In call with ${incomingCallUser}`);
+        }
+      };
     } catch (error) {
       console.error('Error answering call:', error);
       toast.error('Error answering call.');
