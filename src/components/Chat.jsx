@@ -210,39 +210,39 @@ const Chat = () => {
         }
       });
 
-      socket.on('videoAnswer', async ({ answer }) => {
+      socket.on('videoAnswer', async ({ answer, caller }) => {
         console.log('Received video answer:', answer);
         toast.info('Received video answer');
-
+    
         if (peerConnection && peerConnection.signalingState !== 'stable') {
-          try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            setCallStatus(`In call with ${incomingCallUser}`);
-            processQueuedIceCandidates();
-          } catch (error) {
-            console.error('Error setting remote description for answer:', error);
-          }
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log('Remote description set successfully');
+                setCallStatus(`In call with ${incomingCallUser}`);
+            } catch (error) {
+                console.error('Error setting remote description for answer:', error);
+            }
         } else {
-          console.error('No peer connection or peer connection is in a stable state');
+            console.warn('No peer connection or peer connection is in a stable state');
         }
-      });
-
+    });
+    
       socket.on('newIceCandidate', async ({ candidate }) => {
         console.log('Received new ICE candidate:', candidate);
         toast.info('Received new ICE candidate');
-
+    
         if (peerConnection) {
-          if (peerConnection.remoteDescription) {
             try {
-              await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log('Added ICE candidate successfully');
             } catch (error) {
-              console.error('Error adding received ICE candidate:', error);
+                console.error('Error adding ICE candidate:', error);
             }
-          } else {
-            iceCandidatesQueue.current.push(candidate);
-          }
+        } else {
+            console.warn('No peer connection available');
         }
-      });
+    });
+    
 
       socket.on('user-disconnected', () => {
         console.log('User disconnected');
@@ -267,110 +267,134 @@ const Chat = () => {
     }
   }, [socket, userInfo, peerConnection, room]);
 
-  const processQueuedIceCandidates = () => {
+  const processQueuedIceCandidates = async () => {
     console.log('Processing queued ICE candidates:', iceCandidatesQueue.current);
-    iceCandidatesQueue.current.forEach((iceCandidate) => {
+    for (const candidate of iceCandidatesQueue.current) {
       try {
-        peerConnection.addIceCandidate(new RTCIceCandidate(iceCandidate));
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (error) {
         console.error('Error adding queued ICE candidate:', error);
       }
-    });
+    }
     iceCandidatesQueue.current = [];
   };
-  
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: 'stun:stun.l.google.com:19302',
-        },
-      ],
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ]
     });
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('Sending ICE candidate:', event.candidate);
-        socket.emit('newIceCandidate', {
-          candidate: event.candidate,
-          room,
-        });
-      }
+        if (event.candidate) {
+            console.log('Sending ICE candidate:', event.candidate);
+            socket.emit('newIceCandidate', { candidate: event.candidate, room });
+        }
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote track:', event.streams[0]);
-      const [remoteAudioTrack] = event.streams[0].getAudioTracks();
-      console.log('Remote audio track:', remoteAudioTrack);
-  
-      remoteStream.addTrack(remoteAudioTrack);
-      setRemoteStream(remoteStream);
+        console.log('Received remote track:', event.streams[0]);
+        setRemoteStream(event.streams[0]);
     };
 
-    return pc;
-  };
+    pc.onnegotiationneeded = async () => {
+        console.log('Negotiation needed');
+    };
 
-  const handleCall = async (userToCall) => {
-    if (!localStream) {
-      toast.error('Local stream not available.');
-      return;
+    if (localStream) {
+        localStream.getTracks().forEach((track) => {
+            console.log('Adding track:', track);
+            pc.addTrack(track, localStream);
+        });
     }
 
-    const pc = createPeerConnection();
     setPeerConnection(pc);
 
-    localStream.getTracks().forEach((track) => {
-      console.log('Adding local track to peer connection:', track);
-      pc.addTrack(track, localStream);
-    });
+    return pc;
+};
 
-    try {
+
+const handleCall = async (userToCall) => {
+  if (!localStream) {
+      toast.error('Local stream not available.');
+      return;
+  }
+
+  // Check if there is already an active peer connection
+  if (peerConnection) {
+      console.warn('Already in a call');
+      return; // Prevent multiple calls
+  }
+
+  const pc = createPeerConnection();
+  setPeerConnection(pc);
+
+  // Ensure you only add tracks if they haven't been added already
+  localStream.getTracks().forEach((track) => {
+      if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+          console.log('Adding local track to peer connection:', track);
+          pc.addTrack(track, localStream);
+      }
+  });
+
+  try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       socket.emit('videoOffer', {
-        offer,
-        caller: userInfo.name,
-        userToCall,
-        room,
+          offer,
+          caller: userInfo.name,
+          userToCall,
+          room,
       });
       setCallStatus(`Calling ${userToCall}...`);
-    } catch (error) {
+  } catch (error) {
       console.error('Error creating offer:', error);
       toast.error('Error creating offer.');
-    }
-  };
+  }
+};
 
-  const handleAnswerCall = async () => {
-    if (!localStream) {
+
+
+const handleAnswerCall = async () => {
+  if (!localStream) {
       toast.error('Local stream not available.');
       return;
-    }
+  }
 
-    const pc = createPeerConnection();
-    setPeerConnection(pc);
+  // Check if there is already an active peer connection
+  if (peerConnection) {
+      console.warn('Already in a call');
+      return; // Prevent multiple answers
+  }
 
-    localStream.getTracks().forEach((track) => {
-      console.log('Adding local track to peer connection:', track);
-      pc.addTrack(track, localStream);
-    });
+  const pc = createPeerConnection();
+  setPeerConnection(pc);
 
-    try {
+  // Ensure you only add tracks if they haven't been added already
+  localStream.getTracks().forEach((track) => {
+      if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+          console.log('Adding local track to peer connection:', track);
+          pc.addTrack(track, localStream);
+      }
+  });
+
+  try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit('videoAnswer', {
-        answer,
-        room,
+          answer,
+          room,
       });
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
       processQueuedIceCandidates();
-    } catch (error) {
+  } catch (error) {
       console.error('Error creating answer:', error);
       toast.error('Error creating answer.');
-    }
-  };
+  }
+};
 
   const handleRejectCall = () => {
     setIncomingCall(false);
