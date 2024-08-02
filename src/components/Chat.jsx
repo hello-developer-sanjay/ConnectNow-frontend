@@ -309,13 +309,13 @@ const Chat = () => {
     };
 
     if (localStream) {
-        localStream.getTracks().forEach((track) => {
-            // Add a check here
-            if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
-                console.log('Adding track:', track);
-                pc.addTrack(track, localStream);
-            }
-        });
+      localStream.getTracks().forEach((track) => {
+        if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+          console.log('Adding local track to peer connection:', track);
+          pc.addTrack(track, localStream);
+        }
+      });
+      
     }
 
     setPeerConnection(pc);
