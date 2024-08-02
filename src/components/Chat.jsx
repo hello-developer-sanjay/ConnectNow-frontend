@@ -296,11 +296,6 @@ const Chat = () => {
     pc.ontrack = (event) => {
         console.log('Received remote track:', event.track);
         const remoteStream = event.streams[0];
-        if (remoteStream.getAudioTracks().length > 0) {
-            console.log('Remote audio track found.');
-        } else {
-            console.warn('No remote audio track found.');
-        }
         setRemoteStream(remoteStream);
     };
 
@@ -309,85 +304,87 @@ const Chat = () => {
     };
 
     if (localStream) {
-      localStream.getTracks().forEach((track) => {
-        if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
-          console.log('Adding local track to peer connection:', track);
-          pc.addTrack(track, localStream);
-        }
-      });
-      
+        localStream.getTracks().forEach((track) => {
+            if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+                console.log('Adding local track to peer connection:', track);
+                pc.addTrack(track, localStream);
+            }
+        });
     }
 
     setPeerConnection(pc);
-
     return pc;
 };
 
-
-
 const handleCall = async (userToCall) => {
-  if (!localStream) {
-      toast.error('Local stream not available.');
-      return;
-  }
+    if (!localStream) {
+        toast.error('Local stream not available.');
+        return;
+    }
 
-  // Check if there is already an active peer connection
-  if (peerConnection) {
-      console.warn('Already in a call');
-      return; // Prevent multiple calls
-  }
+    // Check if there is already an active peer connection
+    if (peerConnection) {
+        console.warn('Already in a call');
+        return; // Prevent multiple calls
+    }
 
-  const pc = createPeerConnection();
-  setPeerConnection(pc);
+    const pc = createPeerConnection();
+    setPeerConnection(pc);
 
-  // Ensure you only add tracks if they haven't been added already
-  localStream.getTracks().forEach((track) => {
-      if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
-          console.log('Adding local track to peer connection:', track);
-          pc.addTrack(track, localStream);
-      }
-  });
+    // Ensure you only add tracks if they haven't been added already
+    localStream.getTracks().forEach((track) => {
+        if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+            console.log('Adding local track to peer connection:', track);
+            pc.addTrack(track, localStream);
+        }
+    });
 
-  try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('videoOffer', {
-          offer,
-          caller: userInfo.name,
-          userToCall,
-          room,
-      });
-      setCallStatus(`Calling ${userToCall}...`);
-  } catch (error) {
-      console.error('Error creating offer:', error);
-      toast.error('Error creating offer.');
-  }
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('videoOffer', {
+            offer,
+            caller: userInfo.name,
+            userToCall,
+            room,
+        });
+        setCallStatus(`Calling ${userToCall}...`);
+    } catch (error) {
+        console.error('Error creating offer:', error);
+        toast.error('Error creating offer.');
+    }
 };
-
-
 
 const handleAnswerCall = async () => {
-  if (!localStream) {
-      toast.error('Local stream not available.');
-      return;
-  }
+    if (!localStream) {
+        toast.error('Local stream not available.');
+        return;
+    }
 
-  const pc = createPeerConnection();
-  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    const pc = createPeerConnection();
+    
+    // Add local tracks if not already added
+    localStream.getTracks().forEach((track) => {
+        if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
+            console.log('Adding local track to peer connection:', track);
+            pc.addTrack(track, localStream);
+        }
+    });
 
-  try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('videoAnswer', { answer, room });
-      setCallStatus(`In call with ${incomingCallUser}`);
-      setIncomingCall(false);
-      processQueuedIceCandidates();
-  } catch (error) {
-      console.error('Error creating answer:', error);
-      toast.error('Error creating answer.');
-  }
+    try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('videoAnswer', { answer, room });
+        setCallStatus(`In call with ${incomingCallUser}`);
+        setIncomingCall(false);
+        processQueuedIceCandidates();
+    } catch (error) {
+        console.error('Error creating answer:', error);
+        toast.error('Error creating answer.');
+    }
 };
+
 
 
   const handleRejectCall = () => {
