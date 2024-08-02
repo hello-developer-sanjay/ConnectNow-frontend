@@ -294,9 +294,16 @@ const Chat = () => {
     };
 
     pc.ontrack = (event) => {
-        console.log('Received remote track:', event.streams[0]);
-        setRemoteStream(event.streams[0]);
-    };
+      console.log('Received remote track:', event.track);
+      const remoteStream = event.streams[0];
+      if (remoteStream.getAudioTracks().length > 0) {
+          console.log('Remote audio track found.');
+      } else {
+          console.warn('No remote audio track found.');
+      }
+      setRemoteStream(remoteStream);
+  };
+  
 
     pc.onnegotiationneeded = async () => {
         console.log('Negotiation needed');
@@ -355,38 +362,20 @@ const handleCall = async (userToCall) => {
 };
 
 
-
 const handleAnswerCall = async () => {
   if (!localStream) {
       toast.error('Local stream not available.');
       return;
   }
 
-  // Check if there is already an active peer connection
-  if (peerConnection) {
-      console.warn('Already in a call');
-      return; // Prevent multiple answers
-  }
-
   const pc = createPeerConnection();
-  setPeerConnection(pc);
-
-  // Ensure you only add tracks if they haven't been added already
-  localStream.getTracks().forEach((track) => {
-      if (!pc.getSenders().some(sender => sender.track.id === track.id)) {
-          console.log('Adding local track to peer connection:', track);
-          pc.addTrack(track, localStream);
-      }
-  });
+  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
   try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit('videoAnswer', {
-          answer,
-          room,
-      });
+      socket.emit('videoAnswer', { answer, room });
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
       processQueuedIceCandidates();
@@ -395,6 +384,7 @@ const handleAnswerCall = async () => {
       toast.error('Error creating answer.');
   }
 };
+
 
   const handleRejectCall = () => {
     setIncomingCall(false);
