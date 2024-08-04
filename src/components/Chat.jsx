@@ -206,7 +206,7 @@ const Chat = () => {
         console.log("Received video answer:", answer);
         toast.info("Received video answer");
 
-        if (peerConnection && peerConnection.signalingState !== "stable") {
+        if (peerConnection && peerConnection.signalingState === "have-local-offer") {
           try {
             await peerConnection.setRemoteDescription(
               new RTCSessionDescription(answer)
@@ -217,12 +217,13 @@ const Chat = () => {
             console.error("Error setting remote description for answer:", error);
           }
         } else {
-          console.warn("No peer connection or peer connection is in a stable state");
+          console.warn("No peer connection or peer connection is not in 'have-local-offer' state");
         }
       });
 
       socket.on("newIceCandidate", async ({ candidate }) => {
         console.log("Received new ICE candidate:", candidate);
+        toast.info("Received new ICE candidate");
 
         if (peerConnection) {
           try {
@@ -240,31 +241,33 @@ const Chat = () => {
         handleCallEnd();
       });
 
-      socket.on("message", (message) => {
-        console.log("Received message:", message);
-        setMessages((prevMessages) => [...prevMessages, message]);
+      socket.on("message", (msg) => {
+        console.log("Received message:", msg);
+        setMessages((prevMessages) => [...prevMessages, msg]);
       });
 
-      socket.on("joinRoomConfirmation", ({ user, room }) => {
-        console.log(`${user} joined ${room}`);
-        toast.info(`${user} joined ${room}`);
+      socket.on("file", (file) => {
+        console.log("Received file:", file);
+        setFile(file);
       });
     }
-  }, [socket, peerConnection, incomingCallUser]);
+  }, [socket, peerConnection, userInfo]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [
-        {
-          urls: "stun:stun.l.google.com:19302",
-        },
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
       ],
     });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log("Sending ICE candidate:", event.candidate);
-        socket.emit("newIceCandidate", { candidate: event.candidate });
+        socket.emit("newIceCandidate", {
+          candidate: event.candidate,
+          userToCall: incomingCallUser,
+        });
       }
     };
 
