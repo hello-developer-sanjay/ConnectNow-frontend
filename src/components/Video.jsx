@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
 
 const VideoContainer = styled.div`
@@ -32,18 +32,18 @@ const ControlButton = styled.button`
 `;
 
 const Video = ({ localStream, remoteStream, onEndCall }) => {
-  const localVideoRef = React.useRef(null);
-  const remoteVideoRef = React.useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
   const [isMuted, setIsMuted] = React.useState(false);
   const [isVideoOff, setIsVideoOff] = React.useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
