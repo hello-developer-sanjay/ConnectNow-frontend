@@ -299,19 +299,24 @@ const Chat = () => {
     const pc = createPeerConnection();
     setPeerConnection(pc);
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
 
-    socket.emit("videoAnswer", {
-      answer,
-      caller: incomingCallUser,
-    });
+      socket.emit("videoAnswer", {
+        answer,
+        caller: incomingCallUser,
+      });
 
-    console.log("Sent video answer:", answer);
-    setCallStatus(`In call with ${incomingCallUser}`);
-    setIncomingCall(false);
+      console.log("Sent video answer:", answer);
+      setCallStatus(`In call with ${incomingCallUser}`);
+      setIncomingCall(false);
+    } catch (error) {
+      console.error("Error answering call:", error);
+      toast.error("Error answering call");
+    }
   };
 
   const handleRejectCall = () => {
