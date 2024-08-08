@@ -1,34 +1,42 @@
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
 
-const VideoContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
+const VideoWrapper = styled.div`
+  position: relative;
   width: 100%;
   height: 100%;
-  background: black;
+  background-color: black;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
 `;
 
 const VideoElement = styled.video`
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  transform: scaleX(-1); /* Flip video horizontally for local view */
 `;
 
-const Video = ({ stream }) => {
+const Video = ({ stream, isRemote }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (videoRef.current) {
       videoRef.current.srcObject = stream;
       videoRef.current.play();
     }
   }, [stream]);
 
   return (
-    <VideoContainer>
-      <VideoElement ref={videoRef} playsInline autoPlay />
-    </VideoContainer>
+    <VideoWrapper>
+      <VideoElement
+        ref={videoRef}
+        autoPlay
+        muted={isRemote ? false : true} // Mute local video
+      />
+    </VideoWrapper>
   );
 };
 
