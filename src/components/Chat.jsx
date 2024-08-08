@@ -254,12 +254,7 @@ const Chat = () => {
   }, [socket, peerConnection, userInfo]);
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ],
-    });
+    const pc = new RTCPeerConnection();
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -301,7 +296,6 @@ const Chat = () => {
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -314,8 +308,7 @@ const Chat = () => {
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
     } catch (error) {
-      console.error("Error answering call:", error);
-      toast.error("Error answering call");
+      console.error("Error handling call answer:", error);
     }
   };
 
@@ -398,7 +391,8 @@ const Chat = () => {
             <Button onClick={handleRejectCall}>Reject</Button>
           </IncomingCall>
         )}
-        {remoteStream.id && <Video stream={remoteStream} />}
+        {localStream && <Video stream={localStream} />}
+        {remoteStream && <Video stream={remoteStream} isRemote />}
 
         <MessageContainer>
           <h2>Messages</h2>
