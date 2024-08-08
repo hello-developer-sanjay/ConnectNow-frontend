@@ -273,7 +273,10 @@ const Chat = () => {
 
     pc.ontrack = (event) => {
       console.log("Received remote track:", event.streams[0]);
-      setRemoteStream(event.streams[0]);
+      setRemoteStream((prevStream) => {
+        const newStream = new MediaStream([...prevStream.getTracks(), ...event.streams[0].getTracks()]);
+        return newStream;
+      });
     };
 
     if (localStream) {
@@ -405,7 +408,7 @@ const Chat = () => {
     reader.readAsDataURL(file);
   };
 
-  const filteredUsers = users.filter((user) =>
+  const filteredUsers = [...new Set(users)].filter((user) =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
