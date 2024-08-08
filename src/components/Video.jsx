@@ -1,40 +1,33 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import styled from "styled-components";
 
 const VideoContainer = styled.div`
   display: flex;
-  justify-content: space-between;
-  margin-top: 1rem;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: black;
 `;
 
 const VideoElement = styled.video`
-  width: 45%;
+  width: 100%;
   height: auto;
-  background-color: black;
 `;
 
-const Video = ({ localStream, remoteStream }) => {
+const Video = ({ stream }) => {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    }
+  }, [stream]);
+
   return (
     <VideoContainer>
-      <VideoElement
-        playsInline
-        muted
-        autoPlay
-        ref={(video) => {
-          if (video && localStream) {
-            video.srcObject = localStream;
-          }
-        }}
-      />
-      <VideoElement
-        playsInline
-        autoPlay
-        ref={(video) => {
-          if (video && remoteStream) {
-            video.srcObject = remoteStream;
-          }
-        }}
-      />
+      <VideoElement ref={videoRef} playsInline autoPlay />
     </VideoContainer>
   );
 };
