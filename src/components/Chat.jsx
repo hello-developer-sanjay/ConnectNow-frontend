@@ -8,7 +8,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ClipLoader from "react-spinners/ClipLoader";
 
-const ChatContainer = styled.div
+const ChatContainer = styled.div`
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -19,9 +19,9 @@ const ChatContainer = styled.div
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
-;
+`;
 
-const Title = styled.h1
+const Title = styled.h1`
   grid-column: span 2;
   font-size: 2rem;
   margin-bottom: 1rem;
@@ -29,9 +29,9 @@ const Title = styled.h1
   background: linear-gradient(to right, #007bff, #00ff7f);
   -webkit-background-clip: text;
   color: transparent;
-;
+`;
 
-const Button = styled.button
+const Button = styled.button`
   padding: 0.5rem 1rem;
   margin: 0.5rem;
   font-size: 1rem;
@@ -45,35 +45,35 @@ const Button = styled.button
     background: linear-gradient(to right, #0056b3, #00cc6a);
     transform: scale(1.1);
   }
-;
+`;
 
-const UserListContainer = styled.div
+const UserListContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 1rem 0;
   width: 100%;
-;
+`;
 
-const SearchInput = styled.input
+const SearchInput = styled.input`
   width: 100%;
   max-width: 300px;
   padding: 0.5rem;
   margin-bottom: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-;
+`;
 
-const UserList = styled.div
+const UserList = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
   width: 100%;
   max-height: 400px;
   overflow-y: auto;
-;
+`;
 
-const UserItem = styled.div
+const UserItem = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -82,38 +82,38 @@ const UserItem = styled.div
   border-radius: 4px;
   background: #f8f8f8;
   transition: transform 0.3s ease;
-;
+`;
 
-const CallStatus = styled.p
+const CallStatus = styled.p`
   margin: 1rem 0;
   font-size: 1rem;
   color: ${(props) => (props.connected ? "green" : "red")};
   text-align: center;
-;
+`;
 
-const IncomingCall = styled.div
+const IncomingCall = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 1rem 0;
-;
+`;
 
-const MessageContainer = styled.div
+const MessageContainer = styled.div`
   display: flex;
   flex-direction: column;
   margin-top: 1rem;
-;
+`;
 
-const MessageInput = styled.textarea
+const MessageInput = styled.textarea`
   width: 100%;
   max-width: 400px;
   padding: 0.5rem;
   margin-bottom: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-;
+`;
 
-const MessagesList = styled.div
+const MessagesList = styled.div`
   width: 100%;
   max-width: 400px;
   max-height: 200px;
@@ -122,11 +122,11 @@ const MessagesList = styled.div
   border-radius: 4px;
   background: #f8f8f8;
   margin-bottom: 1rem;
-;
+`;
 
-const FileInput = styled.input
+const FileInput = styled.input`
   margin-bottom: 1rem;
-;
+`;
 
 const Chat = () => {
   const [socket, setSocket] = useState(null);
@@ -192,13 +192,13 @@ const Chat = () => {
     if (socket) {
       socket.on("videoOffer", async ({ offer, caller, userToCall }) => {
         console.log("Received video offer:", offer, caller, userToCall);
-        toast.info(Received video offer from ${caller});
+        toast.info(`Received video offer from ${caller}`);
 
         if (userToCall === userInfo?.name) {
           setIncomingCall(true);
           setIncomingCallUser(caller);
           setOffer(offer);
-          setCallStatus(Incoming call from ${caller});
+          setCallStatus(`Incoming call from ${caller}`);
         }
       });
 
@@ -212,7 +212,7 @@ const Chat = () => {
               new RTCSessionDescription(answer)
             );
             console.log("Remote description set successfully");
-            setCallStatus(In call with ${incomingCallUser});
+            setCallStatus(`In call with ${incomingCallUser}`);
           } catch (error) {
             console.error("Error setting remote description for answer:", error);
           }
@@ -259,20 +259,23 @@ const Chat = () => {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("newIceCandidate", { candidate: event.candidate });
+        console.log("Sent ICE candidate:", event.candidate);
       }
     };
 
     pc.ontrack = (event) => {
+      console.log("Received remote track:", event.streams[0]);
       setRemoteStream(event.streams[0]);
     };
 
     localStream.getTracks().forEach((track) => {
-      pc.addTrack(track, localStream);  // Add both video and audio tracks
+      if (track.kind === "audio" || track.kind === "video") {
+        pc.addTrack(track, localStream);
+      }
     });
 
     return pc;
   };
-
 
   const handleCallUser = async (userToCall) => {
     setCallStatus("Calling...");
@@ -288,8 +291,8 @@ const Chat = () => {
       userToCall,
     });
 
-    setCallStatus(Calling ${userToCall}...);
-    toast.info(Calling ${userToCall}...);
+    setCallStatus(`Calling ${userToCall}...`);
+    toast.info(`Calling ${userToCall}...`);
   };
 
   const handleAcceptCall = async () => {
@@ -302,7 +305,7 @@ const Chat = () => {
       await pc.setLocalDescription(answer);
 
       socket.emit("videoAnswer", { answer, caller: incomingCallUser });
-      setCallStatus(In call with ${incomingCallUser});
+      setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
     } catch (error) {
       console.error("Error accepting call:", error);
