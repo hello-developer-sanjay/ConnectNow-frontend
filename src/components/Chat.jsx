@@ -137,56 +137,37 @@ const Chat = () => {
   const [incomingCall, setIncomingCall] = useState(false);
   const [incomingCallUser, setIncomingCallUser] = useState("");
   const [offer, setOffer] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState("");
-  const [file, setFile] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const messageRef = useRef();
+  const [users, setUsers] = useState([]);
 
   const dispatch = useDispatch();
-  const userList = useSelector((state) => state.userList);
-  const { users = [] } = userList;
   const userLogin = useSelector((state) => state.userLogin);
   const { userInfo } = userLogin;
 
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
   useEffect(() => {
-    setLoading(true);
-    dispatch(listUsers()).finally(() => setLoading(false));
-  }, [dispatch]);
+    const newSocket = io("https://connectnow-backend-24july.onrender.com", {
+      transports: ["websocket"],
+    });
+    setSocket(newSocket);
 
- useEffect(() => {
-  const newSocket = io("https://connectnow-backend-24july.onrender.com", {
-    transports: ["websocket"],
-  });
+    newSocket.on("connect", () => {
+      console.log("Connected to WebSocket server");
+      if (userInfo) {
+        newSocket.emit("joinRoom", { room: "commonroom", user: userInfo.name });
+      }
+    });
 
-  setSocket(newSocket);
+    newSocket.on("videoOffer", handleVideoOffer);
+    newSocket.on("videoAnswer", handleVideoAnswer);
+    newSocket.on("newIceCandidate", handleNewIceCandidate);
+    newSocket.on("user-disconnected", handleCallEnd);
 
-  newSocket.on("connect", () => {
-    console.log("Connected to WebSocket server");
-    if (userInfo) {
-      newSocket.emit("joinRoom", { room: "commonroom", user: userInfo.name });
-    }
-  });
-
-  newSocket.on("connect_error", (err) => {
-    console.error("WebSocket connection error:", err);
-    toast.error("WebSocket connection failed! Please try again later.");
-  });
-
-  newSocket.on("disconnect", (reason) => {
-    console.warn("Disconnected from WebSocket:", reason);
-    toast.warn("Connection lost. Reconnecting...");
-  });
-
-  return () => {
-    newSocket.off("connect");
-    newSocket.off("connect_error");
-    newSocket.off("disconnect");
-    newSocket.close();
-  };
-}, [userInfo]);
-
+    return () => {
+      newSocket.close();
+    };
+  }, [userInfo]);
 
   useEffect(() => {
     const initLocalStream = async () => {
@@ -196,114 +177,19 @@ const Chat = () => {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true,
           },
         });
         setLocalStream(stream);
-        console.log("Local stream set:", stream);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
       } catch (error) {
-        console.error("Error accessing media devices.", error);
-        toast.error("Error accessing media devices.");
+        console.error("Error accessing media devices:", error);
       }
     };
 
     initLocalStream();
   }, []);
-useEffect(() => {
-  if (remoteStream && remoteStream.getAudioTracks().length > 0) {
-    const audioElement = new Audio();
-    audioElement.srcObject = remoteStream;
-    audioElement.play().catch((err) => {
-      console.warn("Autoplay prevented: user interaction required.", err);
-    });
-  }
-}, [remoteStream]);
-
-  useEffect(() => {
-  if (!socket) return;
-
-  const handleVideoOffer = async ({ offer, caller, userToCall }) => {
-    console.log("Received video offer:", offer, caller, userToCall);
-    toast.info(`Received video offer from ${caller}`);
-
-    if (userToCall === userInfo?.name) {
-      setIncomingCall(true);
-      setIncomingCallUser(caller);
-      setOffer(offer);
-      setCallStatus(`Incoming call from ${caller}`);
-    }
-  };
-
-  const handleVideoAnswer = async ({ answer, caller }) => {
-    console.log("Received video answer:", answer);
-    toast.info("Received video answer");
-
-    if (peerConnection?.signalingState === "have-local-offer") {
-      try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log("Remote description set successfully");
-        setCallStatus(`In call with ${incomingCallUser}`);
-      } catch (error) {
-        console.error("Error setting remote description for answer:", error);
-      }
-    } else {
-      console.warn("No peer connection or not in 'have-local-offer' state");
-    }
-  };
-
-  const handleNewIceCandidate = async ({ candidate }) => {
-    console.log("Received new ICE candidate:", candidate);
-    toast.info("Received new ICE candidate");
-
-    if (candidate) {
-  console.log("Adding received ICE candidate:", candidate);
-  if (peerConnection) {
-    try {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (error) {
-      console.error("Error adding ICE candidate:", error);
-    }
-  } else {
-    console.warn("Peer connection is null, cannot add ICE candidate yet.");
-  }
-}
-
-  };
-
-  const handleUserDisconnected = () => {
-    console.log("User disconnected");
-    toast.info("User disconnected");
-    handleCallEnd();
-  };
-
-  const handleMessage = (msg) => {
-    console.log("Received message:", msg);
-    setMessages((prevMessages) => [...prevMessages, msg]);
-  };
-
-  const handleFile = (file) => {
-    console.log("Received file:", file);
-    setFile(file);
-  };
-
-  // Socket event listeners
-  socket.on("videoOffer", handleVideoOffer);
-  socket.on("videoAnswer", handleVideoAnswer);
-  socket.on("newIceCandidate", handleNewIceCandidate);
-  socket.on("user-disconnected", handleUserDisconnected);
-  socket.on("message", handleMessage);
-  socket.on("file", handleFile);
-
-  // Cleanup function
-  return () => {
-    socket.off("videoOffer", handleVideoOffer);
-    socket.off("videoAnswer", handleVideoAnswer);
-    socket.off("newIceCandidate", handleNewIceCandidate);
-    socket.off("user-disconnected", handleUserDisconnected);
-    socket.off("message", handleMessage);
-    socket.off("file", handleFile);
-  };
-}, [socket, peerConnection, userInfo, incomingCallUser]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection();
@@ -311,41 +197,24 @@ useEffect(() => {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("newIceCandidate", { candidate: event.candidate });
-        console.log("Sent ICE candidate:", event.candidate);
       }
     };
 
-   pc.ontrack = (event) => {
-  console.log("Received remote track:", event.streams[0]);
-
-  // Ensure remoteStream is updated properly
-  setRemoteStream((prevStream) => {
-    if (!prevStream) {
-      const newStream = new MediaStream();
-      event.streams[0].getTracks().forEach((track) => newStream.addTrack(track));
-      return newStream;
-    } else {
-      event.streams[0].getTracks().forEach((track) => prevStream.addTrack(track));
-      return prevStream;
-    }
-  });
-};
-
+    pc.ontrack = (event) => {
+      event.streams[0].getTracks().forEach((track) => remoteStream.addTrack(track));
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
 
     if (localStream) {
-  localStream.getTracks().forEach((track) => {
-    pc.addTrack(track, localStream);
-  });
-} else {
-  console.warn("Local stream is not ready when trying to add tracks.");
-}
-
+      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    }
 
     return pc;
   };
 
   const handleCallUser = async (userToCall) => {
-    setCallStatus("Calling...");
     const pc = createPeerConnection();
     setPeerConnection(pc);
 
@@ -359,31 +228,38 @@ useEffect(() => {
     });
 
     setCallStatus(`Calling ${userToCall}...`);
-    toast.info(`Calling ${userToCall}...`);
+  };
+
+  const handleVideoOffer = async ({ offer, caller }) => {
+    setIncomingCall(true);
+    setIncomingCallUser(caller);
+    setOffer(offer);
+    setCallStatus(`Incoming call from ${caller}`);
   };
 
   const handleAcceptCall = async () => {
     const pc = createPeerConnection();
     setPeerConnection(pc);
 
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-      socket.emit("videoAnswer", { answer, caller: incomingCallUser });
-      setCallStatus(`In call with ${incomingCallUser}`);
-      setIncomingCall(false);
-    } catch (error) {
-      console.error("Error accepting call:", error);
-      toast.error("Error accepting call.");
+    socket.emit("videoAnswer", { answer, caller: incomingCallUser });
+    setIncomingCall(false);
+    setCallStatus(`In call with ${incomingCallUser}`);
+  };
+
+  const handleVideoAnswer = async ({ answer }) => {
+    if (peerConnection) {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     }
   };
 
-  const handleRejectCall = () => {
-    setIncomingCall(false);
-    setCallStatus("");
-    setIncomingCallUser("");
+  const handleNewIceCandidate = async ({ candidate }) => {
+    if (peerConnection) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
   };
 
   const handleCallEnd = () => {
@@ -391,91 +267,41 @@ useEffect(() => {
       peerConnection.close();
       setPeerConnection(null);
     }
-
     setCallStatus("");
     setRemoteStream(new MediaStream());
-  };
-
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      socket.emit("message", message);
-      setMessages((prevMessages) => [...prevMessages, message]);
-      setMessage("");
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
     }
   };
-
-  const handleFileUpload = () => {
-    if (file) {
-      socket.emit("file", file);
-    }
-  };
-
- const filteredUsers = users.filter(
-  (user) =>
-    user?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) &&
-    user?.name !== userInfo?.name
-);
-
 
   return (
-    <ChatContainer>
-      <Title>Chat</Title>
-
-      <UserListContainer>
-        <SearchInput
-          type="text"
-          placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-
-        {loading ? (
-          <ClipLoader color={"#007bff"} loading={loading} size={50} />
-        ) : (
-          <UserList>
-            {filteredUsers.map((user) => (
-              <UserItem key={user._id}>
-                {user.name}
-                <Button onClick={() => handleCallUser(user.name)}>Call</Button>
-              </UserItem>
-            ))}
-          </UserList>
-        )}
-      </UserListContainer>
-
-      {callStatus && <CallStatus connected={!!peerConnection}>{callStatus}</CallStatus>}
+    <div>
+      <h2>Video Chat</h2>
+      <div>
+        <video ref={localVideoRef} autoPlay muted style={{ width: "300px" }} />
+        <video ref={remoteVideoRef} autoPlay style={{ width: "300px" }} />
+      </div>
 
       {incomingCall && (
-        <IncomingCall>
+        <div>
           <p>Incoming call from {incomingCallUser}</p>
-          <Button onClick={handleAcceptCall}>Accept</Button>
-          <Button onClick={handleRejectCall}>Reject</Button>
-        </IncomingCall>
+          <button onClick={handleAcceptCall}>Accept</button>
+          <button onClick={handleCallEnd}>Reject</button>
+        </div>
       )}
 
-      <Video localStream={localStream} remoteStream={remoteStream} />
-
-      <MessageContainer>
-        <MessageInput
-          placeholder="Type a message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          ref={messageRef}
-        />
-        <Button onClick={handleSendMessage}>Send Message</Button>
-      </MessageContainer>
-
-      <MessagesList>
-        {messages.map((msg, index) => (
-          <p key={index}>{msg}</p>
+      <div>
+        {users.map((user) => (
+          <button key={user.name} onClick={() => handleCallUser(user.name)}>
+            Call {user.name}
+          </button>
         ))}
-      </MessagesList>
+      </div>
 
-      <FileInput type="file" onChange={(e) => setFile(e.target.files[0])} />
-      <Button onClick={handleFileUpload}>Send File</Button>
+      <p>{callStatus}</p>
 
       <ToastContainer />
-    </ChatContainer>
+    </div>
   );
 };
 
