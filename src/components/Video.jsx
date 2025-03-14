@@ -1,82 +1,91 @@
-import React, { useRef, useEffect } from "react";
-import styled from "styled-components";
+// Frontend: Video Chat Component
+import { useEffect, useRef, useState } from 'react';
+import io from 'socket.io-client';
 
-const VideoWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-`;
+const socket = io('http://localhost:5000');
 
-const VideoElement = styled.video`
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-`;
+export default function VideoChat() {
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
+    const [peerConnection, setPeerConnection] = useState(null);
+    const [localStream, setLocalStream] = useState(null);
 
-const MuteButton = styled.button`
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-`;
+    useEffect(() => {
+        async function getMedia() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                setLocalStream(stream);
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = stream;
+                }
+                socket.emit('join-room');
+            } catch (error) {
+                console.error('Error accessing media devices.', error);
+            }
+        }
+        getMedia();
+    }, []);
 
-const ToggleVideoButton = styled.button`
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: #ff0000;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-`;
+    useEffect(() => {
+        socket.on('offer', async (offer) => {
+            const pc = createPeerConnection();
+            setPeerConnection(pc);
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('answer', answer);
+        });
 
-const Video = ({ localStream, remoteStream }) => {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+        socket.on('answer', async (answer) => {
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        });
 
-  useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.muted = true;
+        socket.on('candidate', async (candidate) => {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        });
+    }, [peerConnection]);
+
+    function createPeerConnection() {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('candidate', event.candidate);
+            }
+        };
+
+        pc.ontrack = (event) => {
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        }
+
+        return pc;
     }
-  }, [localStream]);
 
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.muted = false;
+    async function startCall() {
+        const pc = createPeerConnection();
+        setPeerConnection(pc);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', offer);
     }
-  }, [remoteStream]);
 
-  const toggleMute = () => {
-    localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0]
-      .enabled;
-  };
-
-  const toggleVideo = () => {
-    localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0]
-      .enabled;
-  };
-
-  return (
-    <VideoWrapper>
-      <VideoElement ref={localVideoRef} autoPlay playsInline />
-      <VideoElement ref={remoteVideoRef} autoPlay playsInline />
-      <MuteButton onClick={toggleMute}>Mute/Unmute</MuteButton>
-      <ToggleVideoButton onClick={toggleVideo}>Toggle Video</ToggleVideoButton>
-    </VideoWrapper>
-  );
-};
-
-export default Video;
+    return (
+        <div>
+            <video ref={localVideoRef} autoPlay muted playsInline />
+            <video ref={remoteVideoRef} autoPlay playsInline />
+            <button onClick={startCall}>Start Call</button>
+        </div>
+    );
+}
