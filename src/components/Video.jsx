@@ -9,6 +9,7 @@ export default function VideoChat() {
     const remoteVideoRef = useRef(null);
     const [peerConnection, setPeerConnection] = useState(null);
     const [localStream, setLocalStream] = useState(null);
+    const [remoteStream, setRemoteStream] = useState(new MediaStream());
 
     useEffect(() => {
         async function getMedia() {
@@ -61,6 +62,8 @@ export default function VideoChat() {
         };
 
         pc.ontrack = (event) => {
+            console.log("Received remote track:", event.streams[0]);
+            setRemoteStream(event.streams[0]);
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = event.streams[0];
             }
