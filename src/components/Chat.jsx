@@ -209,6 +209,15 @@ const Chat = () => {
 
     initLocalStream();
   }, []);
+useEffect(() => {
+  if (remoteStream && remoteStream.getAudioTracks().length > 0) {
+    const audioElement = new Audio();
+    audioElement.srcObject = remoteStream;
+    audioElement.play().catch((err) => {
+      console.warn("Autoplay prevented: user interaction required.", err);
+    });
+  }
+}, [remoteStream]);
 
   useEffect(() => {
   if (!socket) return;
@@ -246,14 +255,19 @@ const Chat = () => {
     console.log("Received new ICE candidate:", candidate);
     toast.info("Received new ICE candidate");
 
-    if (peerConnection) {
-      try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log("Added ICE candidate successfully");
-      } catch (error) {
-        console.error("Error adding ICE candidate:", error);
-      }
+    if (candidate) {
+  console.log("Adding received ICE candidate:", candidate);
+  if (peerConnection) {
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (error) {
+      console.error("Error adding ICE candidate:", error);
     }
+  } else {
+    console.warn("Peer connection is null, cannot add ICE candidate yet.");
+  }
+}
+
   };
 
   const handleUserDisconnected = () => {
@@ -301,16 +315,31 @@ const Chat = () => {
       }
     };
 
-    pc.ontrack = (event) => {
-      console.log("Received remote track:", event.streams[0]);
-      setRemoteStream(event.streams[0]);
-    };
+   pc.ontrack = (event) => {
+  console.log("Received remote track:", event.streams[0]);
 
-    localStream.getTracks().forEach((track) => {
-      if (track.kind === "audio" || track.kind === "video") {
-        pc.addTrack(track, localStream);
-      }
-    });
+  // Ensure remoteStream is updated properly
+  setRemoteStream((prevStream) => {
+    if (!prevStream) {
+      const newStream = new MediaStream();
+      event.streams[0].getTracks().forEach((track) => newStream.addTrack(track));
+      return newStream;
+    } else {
+      event.streams[0].getTracks().forEach((track) => prevStream.addTrack(track));
+      return prevStream;
+    }
+  });
+};
+
+
+    if (localStream) {
+  localStream.getTracks().forEach((track) => {
+    pc.addTrack(track, localStream);
+  });
+} else {
+  console.warn("Local stream is not ready when trying to add tracks.");
+}
+
 
     return pc;
   };
