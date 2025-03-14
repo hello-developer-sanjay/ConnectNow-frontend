@@ -1,4 +1,3 @@
-// Frontend: Video Chat Component
 import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
@@ -9,7 +8,7 @@ export default function VideoChat() {
     const remoteVideoRef = useRef(null);
     const [peerConnection, setPeerConnection] = useState(null);
     const [localStream, setLocalStream] = useState(null);
-    const [remoteStream, setRemoteStream] = useState(new MediaStream());
+    const [remoteStream, setRemoteStream] = useState(null);
 
     useEffect(() => {
         async function getMedia() {
@@ -32,6 +31,7 @@ export default function VideoChat() {
             const pc = createPeerConnection();
             setPeerConnection(pc);
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             socket.emit('answer', answer);
@@ -62,11 +62,10 @@ export default function VideoChat() {
         };
 
         pc.ontrack = (event) => {
-            console.log("Received remote track:", event.streams[0]);
-            setRemoteStream(event.streams[0]);
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = event.streams[0];
             }
+            setRemoteStream(event.streams[0]);
         };
 
         if (localStream) {
@@ -86,8 +85,11 @@ export default function VideoChat() {
 
     return (
         <div>
-            <video ref={localVideoRef} autoPlay muted playsInline />
-            <video ref={remoteVideoRef} autoPlay playsInline />
+            <h2>Video Chat</h2>
+            <div style={{ display: 'flex', gap: '20px' }}>
+                <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '300px', border: '2px solid green' }} />
+                <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '300px', border: '2px solid red' }} />
+            </div>
             <button onClick={startCall}>Start Call</button>
         </div>
     );
