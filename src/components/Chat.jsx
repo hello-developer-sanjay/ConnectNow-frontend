@@ -211,69 +211,85 @@ const Chat = () => {
   }, []);
 
   useEffect(() => {
-    if (socket) {
-      socket.on("videoOffer", async ({ offer, caller, userToCall }) => {
-        console.log("Received video offer:", offer, caller, userToCall);
-        toast.info(`Received video offer from ${caller}`);
+  if (!socket) return;
 
-        if (userToCall === userInfo?.name) {
-          setIncomingCall(true);
-          setIncomingCallUser(caller);
-          setOffer(offer);
-          setCallStatus(`Incoming call from ${caller}`);
-        }
-      });
+  const handleVideoOffer = async ({ offer, caller, userToCall }) => {
+    console.log("Received video offer:", offer, caller, userToCall);
+    toast.info(`Received video offer from ${caller}`);
 
-      socket.on("videoAnswer", async ({ answer, caller }) => {
-        console.log("Received video answer:", answer);
-        toast.info("Received video answer");
-
-        if (peerConnection && peerConnection.signalingState === "have-local-offer") {
-          try {
-            await peerConnection.setRemoteDescription(
-              new RTCSessionDescription(answer)
-            );
-            console.log("Remote description set successfully");
-            setCallStatus(`In call with ${incomingCallUser}`);
-          } catch (error) {
-            console.error("Error setting remote description for answer:", error);
-          }
-        } else {
-          console.warn("No peer connection or peer connection is not in 'have-local-offer' state");
-        }
-      });
-
-      socket.on("newIceCandidate", async ({ candidate }) => {
-        console.log("Received new ICE candidate:", candidate);
-        toast.info("Received new ICE candidate");
-
-        if (peerConnection) {
-          try {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-            console.log("Added ICE candidate successfully");
-          } catch (error) {
-            console.error("Error adding ICE candidate:", error);
-          }
-        }
-      });
-
-      socket.on("user-disconnected", () => {
-        console.log("User disconnected");
-        toast.info("User disconnected");
-        handleCallEnd();
-      });
-
-      socket.on("message", (msg) => {
-        console.log("Received message:", msg);
-        setMessages((prevMessages) => [...prevMessages, msg]);
-      });
-
-      socket.on("file", (file) => {
-        console.log("Received file:", file);
-        setFile(file);
-      });
+    if (userToCall === userInfo?.name) {
+      setIncomingCall(true);
+      setIncomingCallUser(caller);
+      setOffer(offer);
+      setCallStatus(`Incoming call from ${caller}`);
     }
-  }, [socket, peerConnection, userInfo]);
+  };
+
+  const handleVideoAnswer = async ({ answer, caller }) => {
+    console.log("Received video answer:", answer);
+    toast.info("Received video answer");
+
+    if (peerConnection?.signalingState === "have-local-offer") {
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log("Remote description set successfully");
+        setCallStatus(`In call with ${incomingCallUser}`);
+      } catch (error) {
+        console.error("Error setting remote description for answer:", error);
+      }
+    } else {
+      console.warn("No peer connection or not in 'have-local-offer' state");
+    }
+  };
+
+  const handleNewIceCandidate = async ({ candidate }) => {
+    console.log("Received new ICE candidate:", candidate);
+    toast.info("Received new ICE candidate");
+
+    if (peerConnection) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log("Added ICE candidate successfully");
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
+      }
+    }
+  };
+
+  const handleUserDisconnected = () => {
+    console.log("User disconnected");
+    toast.info("User disconnected");
+    handleCallEnd();
+  };
+
+  const handleMessage = (msg) => {
+    console.log("Received message:", msg);
+    setMessages((prevMessages) => [...prevMessages, msg]);
+  };
+
+  const handleFile = (file) => {
+    console.log("Received file:", file);
+    setFile(file);
+  };
+
+  // Socket event listeners
+  socket.on("videoOffer", handleVideoOffer);
+  socket.on("videoAnswer", handleVideoAnswer);
+  socket.on("newIceCandidate", handleNewIceCandidate);
+  socket.on("user-disconnected", handleUserDisconnected);
+  socket.on("message", handleMessage);
+  socket.on("file", handleFile);
+
+  // Cleanup function
+  return () => {
+    socket.off("videoOffer", handleVideoOffer);
+    socket.off("videoAnswer", handleVideoAnswer);
+    socket.off("newIceCandidate", handleNewIceCandidate);
+    socket.off("user-disconnected", handleUserDisconnected);
+    socket.off("message", handleMessage);
+    socket.off("file", handleFile);
+  };
+}, [socket, peerConnection, userInfo, incomingCallUser]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection();
