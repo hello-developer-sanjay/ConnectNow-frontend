@@ -161,7 +161,6 @@ const Chat = () => {
     const newSocket = io("https://connectnow-backend-24july.onrender.com", {
       transports: ["websocket"],
     });
-
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
@@ -208,7 +207,6 @@ const Chat = () => {
         toast.error("Error accessing media devices.");
       }
     };
-
     initLocalStream();
   }, []);
 
@@ -230,7 +228,6 @@ const Chat = () => {
     const handleVideoOffer = async ({ offer, caller, userToCall }) => {
       console.log("Received video offer:", offer, caller, userToCall);
       toast.info(`Received video offer from ${caller}`);
-
       if (userToCall === userInfo?.name) {
         setIncomingCall(true);
         setIncomingCallUser(caller);
@@ -242,7 +239,6 @@ const Chat = () => {
     const handleVideoAnswer = async ({ answer, caller }) => {
       console.log("Received video answer:", answer);
       toast.info("Received video answer");
-
       if (peerConnection) {
         try {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
@@ -259,7 +255,6 @@ const Chat = () => {
     const handleNewIceCandidate = async ({ candidate }) => {
       console.log("Received new ICE candidate:", candidate);
       toast.info("Received new ICE candidate");
-
       if (candidate && peerConnection) {
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -310,21 +305,18 @@ const Chat = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
-
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("newIceCandidate", { candidate: event.candidate });
         console.log("Sent ICE candidate:", event.candidate);
       }
     };
-
     pc.ontrack = (event) => {
       console.log("Received remote track:", event.streams[0]);
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
       }
     };
-
     if (localStream) {
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
@@ -332,7 +324,6 @@ const Chat = () => {
     } else {
       console.warn("Local stream is not ready when trying to add tracks.");
     }
-
     return pc;
   };
 
@@ -341,17 +332,15 @@ const Chat = () => {
     setCallStatus("Calling...");
     const pc = createPeerConnection();
     setPeerConnection(pc);
-
     try {
-      const offer = await pc.createOffer();
+      // Pass options to explicitly request audio and video reception
+      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
       await pc.setLocalDescription(offer);
-
       socket.emit("videoOffer", {
         offer,
         caller: userInfo.name,
         userToCall,
       });
-
       setCallStatus(`Calling ${userToCall}...`);
       toast.info(`Calling ${userToCall}...`);
     } catch (error) {
@@ -368,12 +357,11 @@ const Chat = () => {
       pc = createPeerConnection();
       setPeerConnection(pc);
     }
-
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
+      // Pass options to explicitly request audio and video reception
+      const answer = await pc.createAnswer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
       await pc.setLocalDescription(answer);
-
       socket.emit("videoAnswer", { answer, caller: incomingCallUser });
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
@@ -421,7 +409,6 @@ const Chat = () => {
   return (
     <ChatContainer>
       <Title>Chat</Title>
-
       <UserListContainer>
         <SearchInput
           type="text"
@@ -429,7 +416,6 @@ const Chat = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-
         {loading ? (
           <ClipLoader color={"#007bff"} loading={loading} size={50} />
         ) : (
@@ -443,9 +429,7 @@ const Chat = () => {
           </UserList>
         )}
       </UserListContainer>
-
       {callStatus && <CallStatus connected={!!peerConnection}>{callStatus}</CallStatus>}
-
       {incomingCall && (
         <IncomingCall>
           <p>Incoming call from {incomingCallUser}</p>
@@ -453,10 +437,8 @@ const Chat = () => {
           <Button onClick={handleRejectCall}>Reject</Button>
         </IncomingCall>
       )}
-
       {/* Render the presentational Video component */}
       <Video localStream={localStream} remoteStream={remoteStream} />
-
       <MessageContainer>
         <MessageInput
           placeholder="Type a message..."
@@ -466,16 +448,13 @@ const Chat = () => {
         />
         <Button onClick={handleSendMessage}>Send Message</Button>
       </MessageContainer>
-
       <MessagesList>
         {messages.map((msg, index) => (
           <p key={index}>{msg}</p>
         ))}
       </MessagesList>
-
       <FileInput type="file" onChange={(e) => setFile(e.target.files[0])} />
       <Button onClick={handleFileUpload}>Send File</Button>
-
       <ToastContainer />
     </ChatContainer>
   );
