@@ -8,7 +8,7 @@ export default function VideoChat() {
     const remoteVideoRef = useRef(null);
     const [peerConnection, setPeerConnection] = useState(null);
     const [localStream, setLocalStream] = useState(null);
-
+    
     useEffect(() => {
         async function getMedia() {
             try {
@@ -26,34 +26,8 @@ export default function VideoChat() {
     }, []);
 
     useEffect(() => {
-        if (!localStream) return;
-
-        function createPeerConnection() {
-            const pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            });
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('candidate', event.candidate);
-                }
-            };
-
-            pc.ontrack = (event) => {
-                if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = event.streams[0];
-                }
-            };
-
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-            return pc;
-        }
-
-        const pc = createPeerConnection();
-        setPeerConnection(pc);
-
         socket.on('offer', async (offer) => {
+            const pc = createPeerConnection();
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -61,25 +35,47 @@ export default function VideoChat() {
         });
 
         socket.on('answer', async (answer) => {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            }
         });
 
         socket.on('candidate', async (candidate) => {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        });
+    }, [peerConnection]);
+
+    function createPeerConnection() {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
 
-        return () => {
-            socket.off('offer');
-            socket.off('answer');
-            socket.off('candidate');
-            pc.close();
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('candidate', event.candidate);
+            }
         };
-    }, [localStream]);
+
+        pc.ontrack = (event) => {
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        }
+
+        setPeerConnection(pc);
+        return pc;
+    }
 
     async function startCall() {
-        if (!peerConnection) return;
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
+        const pc = createPeerConnection();
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
         socket.emit('offer', offer);
     }
 
