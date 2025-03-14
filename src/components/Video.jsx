@@ -26,6 +26,15 @@ export default function VideoChat() {
       }
     }
     getMedia();
+
+    return () => {
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -33,26 +42,38 @@ export default function VideoChat() {
       const pc = createPeerConnection();
       peerConnectionRef.current = pc;
 
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-      socket.emit("answer", answer);
+        socket.emit("answer", answer);
+      } catch (error) {
+        console.error("Error handling offer:", error);
+      }
     });
 
     socket.on("answer", async (answer) => {
-      if (peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(
-          new RTCSessionDescription(answer)
-        );
+      try {
+        if (peerConnectionRef.current) {
+          await peerConnectionRef.current.setRemoteDescription(
+            new RTCSessionDescription(answer)
+          );
+        }
+      } catch (error) {
+        console.error("Error handling answer:", error);
       }
     });
 
     socket.on("candidate", async (candidate) => {
-      if (peerConnectionRef.current) {
-        await peerConnectionRef.current.addIceCandidate(
-          new RTCIceCandidate(candidate)
-        );
+      try {
+        if (peerConnectionRef.current) {
+          await peerConnectionRef.current.addIceCandidate(
+            new RTCIceCandidate(candidate)
+          );
+        }
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
       }
     });
 
@@ -61,7 +82,7 @@ export default function VideoChat() {
       socket.off("answer");
       socket.off("candidate");
     };
-  }, []);
+  }, [localStream]);
 
   function createPeerConnection() {
     const pc = new RTCPeerConnection({
@@ -75,15 +96,14 @@ export default function VideoChat() {
     };
 
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
+      if (remoteVideoRef.current && event.streams[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
     };
 
+    // Add local tracks AFTER creating the peer connection
     if (localStream) {
-      localStream.getTracks().forEach((track) =>
-        pc.addTrack(track, localStream)
-      );
+      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
     }
 
     return pc;
@@ -93,9 +113,13 @@ export default function VideoChat() {
     const pc = createPeerConnection();
     peerConnectionRef.current = pc;
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit("offer", offer);
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", offer);
+    } catch (error) {
+      console.error("Error starting call:", error);
+    }
   }
 
   return (
