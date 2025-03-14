@@ -11,7 +11,7 @@ export default function Video({ localStream, remoteStream }) {
     }
   }, [localStream]);
 
-  // Attach the remote stream to the remote video element
+  // Attach the remote stream (with audio & video) to the remote video element
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
@@ -39,4 +39,3 @@ export default function Video({ localStream, remoteStream }) {
     </div>
   );
 }
-
