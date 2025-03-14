@@ -137,19 +137,27 @@ const Chat = () => {
   const [incomingCall, setIncomingCall] = useState(false);
   const [incomingCallUser, setIncomingCallUser] = useState("");
   const [offer, setOffer] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
+  const userList = useSelector((state) => state.userList);
+  const { users = [] } = userList;
   const userLogin = useSelector((state) => state.userLogin);
   const { userInfo } = userLogin;
 
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  useEffect(() => {
+    setLoading(true);
+    dispatch(listUsers()).finally(() => setLoading(false));
+  }, [dispatch]);
 
   useEffect(() => {
     const newSocket = io("https://connectnow-backend-24july.onrender.com", {
       transports: ["websocket"],
     });
+
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
@@ -159,10 +167,27 @@ const Chat = () => {
       }
     });
 
-    newSocket.on("videoOffer", handleVideoOffer);
-    newSocket.on("videoAnswer", handleVideoAnswer);
-    newSocket.on("newIceCandidate", handleNewIceCandidate);
-    newSocket.on("user-disconnected", handleCallEnd);
+    newSocket.on("videoOffer", async ({ offer, caller }) => {
+      console.log("Received video offer from:", caller);
+      setOffer(offer);
+      setIncomingCall(true);
+      setIncomingCallUser(caller);
+      setCallStatus(`Incoming call from ${caller}`);
+    });
+
+    newSocket.on("videoAnswer", async ({ answer }) => {
+      console.log("Received video answer");
+      if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    });
+
+    newSocket.on("newIceCandidate", async ({ candidate }) => {
+      console.log("Received ICE candidate:", candidate);
+      if (peerConnection) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
 
     return () => {
       newSocket.close();
@@ -174,17 +199,12 @@ const Chat = () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-          },
+          audio: true,
         });
         setLocalStream(stream);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
       } catch (error) {
-        console.error("Error accessing media devices:", error);
+        console.error("Error accessing media devices.", error);
+        toast.error("Error accessing media devices.");
       }
     };
 
@@ -192,7 +212,9 @@ const Chat = () => {
   }, []);
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -201,40 +223,28 @@ const Chat = () => {
     };
 
     pc.ontrack = (event) => {
-      event.streams[0].getTracks().forEach((track) => remoteStream.addTrack(track));
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
+      setRemoteStream((prevStream) => {
+        event.streams[0].getTracks().forEach((track) => prevStream.addTrack(track));
+        return prevStream;
+      });
     };
 
-    if (localStream) {
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-    }
+    localStream?.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
     return pc;
   };
 
   const handleCallUser = async (userToCall) => {
+    setCallStatus("Calling...");
     const pc = createPeerConnection();
     setPeerConnection(pc);
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    socket.emit("videoOffer", {
-      offer,
-      caller: userInfo.name,
-      userToCall,
-    });
+    socket.emit("videoOffer", { offer, caller: userInfo.name, userToCall });
 
     setCallStatus(`Calling ${userToCall}...`);
-  };
-
-  const handleVideoOffer = async ({ offer, caller }) => {
-    setIncomingCall(true);
-    setIncomingCallUser(caller);
-    setOffer(offer);
-    setCallStatus(`Incoming call from ${caller}`);
   };
 
   const handleAcceptCall = async () => {
@@ -242,63 +252,33 @@ const Chat = () => {
     setPeerConnection(pc);
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
     socket.emit("videoAnswer", { answer, caller: incomingCallUser });
-    setIncomingCall(false);
     setCallStatus(`In call with ${incomingCallUser}`);
-  };
-
-  const handleVideoAnswer = async ({ answer }) => {
-    if (peerConnection) {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    }
-  };
-
-  const handleNewIceCandidate = async ({ candidate }) => {
-    if (peerConnection) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-  };
-
-  const handleCallEnd = () => {
-    if (peerConnection) {
-      peerConnection.close();
-      setPeerConnection(null);
-    }
-    setCallStatus("");
-    setRemoteStream(new MediaStream());
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-    }
+    setIncomingCall(false);
   };
 
   return (
     <div>
-      <h2>Video Chat</h2>
-      <div>
-        <video ref={localVideoRef} autoPlay muted style={{ width: "300px" }} />
-        <video ref={remoteVideoRef} autoPlay style={{ width: "300px" }} />
-      </div>
+      <h2>Chat</h2>
+      <video ref={(video) => video && (video.srcObject = localStream)} autoPlay muted />
+      <video ref={(video) => video && (video.srcObject = remoteStream)} autoPlay />
+
+      {users.map((user) => (
+        <button key={user._id} onClick={() => handleCallUser(user.name)}>
+          Call {user.name}
+        </button>
+      ))}
 
       {incomingCall && (
         <div>
           <p>Incoming call from {incomingCallUser}</p>
           <button onClick={handleAcceptCall}>Accept</button>
-          <button onClick={handleCallEnd}>Reject</button>
         </div>
       )}
-
-      <div>
-        {users.map((user) => (
-          <button key={user.name} onClick={() => handleCallUser(user.name)}>
-            Call {user.name}
-          </button>
-        ))}
-      </div>
-
-      <p>{callStatus}</p>
 
       <ToastContainer />
     </div>
