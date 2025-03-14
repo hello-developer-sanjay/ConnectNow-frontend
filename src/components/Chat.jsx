@@ -155,16 +155,38 @@ const Chat = () => {
     dispatch(listUsers()).finally(() => setLoading(false));
   }, [dispatch]);
 
-  useEffect(() => {
-    const newSocket = io("https://connectnow-backend-24july.onrender.com");
-    setSocket(newSocket);
+ useEffect(() => {
+  const newSocket = io("https://connectnow-backend-24july.onrender.com", {
+    transports: ["websocket"],
+  });
 
+  setSocket(newSocket);
+
+  newSocket.on("connect", () => {
+    console.log("Connected to WebSocket server");
     if (userInfo) {
       newSocket.emit("joinRoom", { room: "commonroom", user: userInfo.name });
     }
+  });
 
-    return () => newSocket.close();
-  }, [userInfo]);
+  newSocket.on("connect_error", (err) => {
+    console.error("WebSocket connection error:", err);
+    toast.error("WebSocket connection failed! Please try again later.");
+  });
+
+  newSocket.on("disconnect", (reason) => {
+    console.warn("Disconnected from WebSocket:", reason);
+    toast.warn("Connection lost. Reconnecting...");
+  });
+
+  return () => {
+    newSocket.off("connect");
+    newSocket.off("connect_error");
+    newSocket.off("disconnect");
+    newSocket.close();
+  };
+}, [userInfo]);
+
 
   useEffect(() => {
     const initLocalStream = async () => {
@@ -343,11 +365,12 @@ const Chat = () => {
     }
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      user.name !== userInfo?.name
-  );
+ const filteredUsers = users.filter(
+  (user) =>
+    user?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) &&
+    user?.name !== userInfo?.name
+);
+
 
   return (
     <ChatContainer>
