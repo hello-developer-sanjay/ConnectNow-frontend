@@ -212,8 +212,6 @@ const Chat = () => {
     initLocalStream();
   }, []);
 
-  // (Removed extra remote audio element creation to prevent duplicate playback.)
-
   // Listen for signaling events
   useEffect(() => {
     if (!socket) return;
@@ -235,12 +233,17 @@ const Chat = () => {
       toast.info("Received video answer");
 
       if (peerConnection) {
-        try {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log("Remote description set successfully");
-          setCallStatus(`In call with ${incomingCallUser}`);
-        } catch (error) {
-          console.error("Error setting remote description for answer:", error);
+        // Only set the remote description if the signaling state is "have-local-offer"
+        if (peerConnection.signalingState === "have-local-offer") {
+          try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log("Remote description set successfully");
+            setCallStatus(`In call with ${incomingCallUser}`);
+          } catch (error) {
+            console.error("Error setting remote description for answer:", error);
+          }
+        } else {
+          console.warn("Cannot set remote answer. Peer connection signaling state is:", peerConnection.signalingState);
         }
       } else {
         console.warn("No peer connection available to set remote description.");
@@ -360,7 +363,6 @@ const Chat = () => {
 
   // Accept an incoming call
   const handleAcceptCall = async () => {
-    // Reuse the existing peer connection if available; otherwise create a new one.
     let pc = peerConnection;
     if (!pc) {
       pc = createPeerConnection();
