@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { login } from '../actions/userActions';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -11,18 +11,20 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const dispatch = useDispatch();
-    const navigate = useNavigate();
+    const history = useHistory();
     const userLogin = useSelector((state) => state.userLogin);
     const { loading, error, userInfo } = userLogin;
+
+    useEffect(() => {
+        if (userInfo) {
+            history.push('/');
+        }
+    }, [userInfo, history]);
 
     const submitHandler = (e) => {
         e.preventDefault();
         dispatch(login(email, password));
     };
-
-    if (userInfo) {
-        navigate('/');
-    }
 
     return (
         <LoginContainer>
