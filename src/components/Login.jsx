@@ -1,117 +1,147 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { login } from '../actions/userActions';
+import { register } from '../actions/userActions';
 import styled from 'styled-components';
-import { FaEye, FaEyeSlash } from 'react-icons/fa'; 
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+const Register = ({ history }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const dispatch = useDispatch();
+    const userRegister = useSelector((state) => state.userRegister);
+    const { loading, error, userInfo } = userRegister;
+
+    const submitHandler = (e) => {
+        e.preventDefault();
+        if (password !== confirmPassword) {
+            alert('Passwords do not match');
+        } else {
+            dispatch(register(name, email, password));
+        }
+    };
+
+    if (userInfo) {
+        history.push('/');
+    }
+
+    return (
+        <RegisterContainer>
+            <h1>Register</h1>
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {loading && <LoadingMessage>Loading...</LoadingMessage>}
+            <Form onSubmit={submitHandler}>
+                <Input
+                    type="text"
+                    placeholder="Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                />
+                <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
+                <PasswordWrapper>
+                    <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <EyeIcon onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </EyeIcon>
+                </PasswordWrapper>
+                <PasswordWrapper>
+                    <Input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Confirm Password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <EyeIcon onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </EyeIcon>
+                </PasswordWrapper>
+                <Button type="submit">Register</Button>
+            </Form>
+        </RegisterContainer>
+    );
+};
+
+export default Register;
+
+const RegisterContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: #f8f9fa;
 `;
 
-
 const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 400px;
-  padding: 2rem;
-  gap: 1rem;
-  border-radius: 8px;
-    `;
-
-const InputWrapper = styled.div`
-  position: relative;
-  margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  &:focus {
-    border-color: #a6c0fe;
-    outline: none;
-  }
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
 `;
 
-const ToggleButton = styled.div`
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  color: #a6c0fe;
-  font-size: 1.25rem;
+const PasswordWrapper = styled.div`
+    display: flex;
+    align-items: center;
+    position: relative;
+`;
+
+const EyeIcon = styled.div`
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #777;
 `;
 
 const Button = styled.button`
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  background-color: #a6c0fe;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  &:hover {
-    background-color: #8a9ef4;
-  }
+    background: #007bff;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s ease;
+    &:hover {
+        background: #0056b3;
+    }
 `;
 
-const Message = styled.div`
-  margin-bottom: 1rem;
-  color: ${(props) => (props.error ? 'red' : 'green')};
+const ErrorMessage = styled.div`
+    color: red;
+    margin-bottom: 10px;
 `;
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
-
-  const dispatch = useDispatch();
-  const userLogin = useSelector((state) => state.userLogin);
-  const { loading, error } = userLogin;
-
-  const submitHandler = (e) => {
-    e.preventDefault();
-    dispatch(login(email, password));
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  return (
-    <Container>
-      {error && <Message error>{error}</Message>}
-      {loading && <Message>Loading...</Message>}
-      <Form onSubmit={submitHandler}>
-        <Input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <InputWrapper>
-          <Input
-            type={showPassword ? 'text' : 'password'}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <ToggleButton onClick={togglePasswordVisibility}>
-            {showPassword ? <FaEyeSlash /> : <FaEye />}
-          </ToggleButton>
-        </InputWrapper>
-        <Button type="submit">Login</Button>
-      </Form>
-    </Container>
-  );
-};
-
-export default Login;
+const LoadingMessage = styled.div`
+    color: #007bff;
+    margin-bottom: 10px;
+`;
