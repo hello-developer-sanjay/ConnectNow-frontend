@@ -1,28 +1,21 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { register } from '../actions/userActions';
+import { login } from '../actions/userActions';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const Register = ({ history }) => {
-    const [name, setName] = useState('');
+const Login = ({ history }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const dispatch = useDispatch();
-    const userRegister = useSelector((state) => state.userRegister);
-    const { loading, error, userInfo } = userRegister;
+    const userLogin = useSelector((state) => state.userLogin);
+    const { loading, error, userInfo } = userLogin;
 
     const submitHandler = (e) => {
         e.preventDefault();
-        if (password !== confirmPassword) {
-            alert('Passwords do not match');
-        } else {
-            dispatch(register(name, email, password));
-        }
+        dispatch(login(email, password));
     };
 
     if (userInfo) {
@@ -30,17 +23,11 @@ const Register = ({ history }) => {
     }
 
     return (
-        <RegisterContainer>
-            <h1>Register</h1>
+        <LoginContainer>
+            <h1>Login</h1>
             {error && <ErrorMessage>{error}</ErrorMessage>}
             {loading && <LoadingMessage>Loading...</LoadingMessage>}
             <Form onSubmit={submitHandler}>
-                <Input
-                    type="text"
-                    placeholder="Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                />
                 <Input
                     type="email"
                     placeholder="Email"
@@ -58,26 +45,15 @@ const Register = ({ history }) => {
                         {showPassword ? <FaEyeSlash /> : <FaEye />}
                     </EyeIcon>
                 </PasswordWrapper>
-                <PasswordWrapper>
-                    <Input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Confirm Password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                    <EyeIcon onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                    </EyeIcon>
-                </PasswordWrapper>
-                <Button type="submit">Register</Button>
+                <Button type="submit">Login</Button>
             </Form>
-        </RegisterContainer>
+        </LoginContainer>
     );
 };
 
-export default Register;
+export default Login;
 
-const RegisterContainer = styled.div`
+const LoginContainer = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
