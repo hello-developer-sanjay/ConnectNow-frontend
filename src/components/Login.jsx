@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { login } from '../actions/userActions';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const Login = ({ history }) => {
+const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const userLogin = useSelector((state) => state.userLogin);
     const { loading, error, userInfo } = userLogin;
 
@@ -19,7 +21,7 @@ const Login = ({ history }) => {
     };
 
     if (userInfo) {
-        history.push('/');
+        navigate('/');
     }
 
     return (
