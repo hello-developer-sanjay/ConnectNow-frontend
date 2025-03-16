@@ -420,7 +420,7 @@ const Chat = () => {
 
   return (
     <ChatContainer>
-      <Title>Chat</Title>
+      <Title>ConnectNow | Seamless Video Chat & Instant Messaging</Title>
 
       <UserListContainer>
         <SearchInput
