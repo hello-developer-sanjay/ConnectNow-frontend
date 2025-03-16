@@ -101,31 +101,31 @@ function SignInSignUp({ showCloseButton }) {
     <Container>
        <Helmet>
     
-    <title>EventEase Login - Unlock the Magic of Learning</title>
+    <title>ConnectNow | Seamless Video Chat & Instant Messaging</title>
  <meta
    name="description"
    content="
-Welcome to EventEase - the premier online learning platform inspired by the magical world of Harry Potter. Log in to access your personalized dashboard, where cutting-edge technology meets enchanting education. Whether you're an aspiring wizard or a tech enthusiast, HogwartsEdx offers a comprehensive range of courses in data science, artificial intelligence, software development, cybersecurity, and more. Join our community to experience interactive lessons, immersive virtual classrooms, and hands-on projects that bring learning to life. Sign in now to start your journey with HogwartsEdx and unlock the magic of advanced technology and education!"
+ConnectNow is a secure and user-friendly platform for seamless video calls and real-time messaging. Enjoy high-quality video chat, instant messaging, and file sharing—all in one place."
  />
  
 
- <meta property="og:title" content=" EventEase Login - Unlock the Magic of Learning" />
- <meta property="og:description" content="The VerifyCertificate page provides users with a seamless interface for verifying and downloading certificates. Users can search for certificates using criteria such as user name, unique ID, and date, with real-time feedback provided via loading indicators and error messages. Upon successful verification, detailed certificate information is displayed, including the user's name, certificate category, and issuance date. Users can conveniently download certificates in PDF format directly from the interface. The page ensures accessibility with labeled form fields and optimized color contrast, while advanced styles and responsive design enhance the user experience across different devices. Implemented with React's state management and Axios for data fetching, the page utilizes the file-saver library for downloading certificates. Styled-components and keyframe animations are employed for a modern design, with intersection observer handling animations and visibility. This comprehensive functionality overview underscores the VerifyCertificate page's utility, accessibility, and user-centric design"/> 
+ <meta property="og:title" content=" ConnectNow | Seamless Video Chat & Instant Messaging" />
+ <meta property="og:description" content="ConnectNow is a secure and user-friendly platform for seamless video calls and real-time messaging. Enjoy high-quality video chat, instant messaging, and file sharing—all in one place."/> 
  <meta property="og:type" content="website" />
- <meta property="og:url" content="https://HogwartsEdX.vercel.app/login" />
+ <meta property="og:url" content="https://connectnow.vercel.app/login" />
  <meta property="og:image" content="https://sanjaybasket.s3.ap-south-1.amazonaws.com/HogwartsEdX/hogwartscertify.png" />
  <meta property="og:image:alt" content="Sanjay Patidar" />
- <meta property="og:site_name" content=" EventEase Login - Unlock the Magic of Learning" />
-  <link rel="canonical" href="https://HogwartsEdX.vercel.app/login" />
+ <meta property="og:site_name" content=" ConnectNow | Seamless Video Chat & Instant Messaging" />
+  <link rel="canonical" href="https://connectnow.vercel.app/login" />
 
  <meta name="twitter:card" content="summary_large_image" />
- <meta name="twitter:title" content="EventEase Login - Unlock the Magic of Learning" />
- <meta name="twitter:description" content="Welcome to HogwartsEdx - the premier online learning platform inspired by the magical world of Harry Potter. Log in to access your personalized dashboard, where cutting-edge technology meets enchanting education. Whether you're an aspiring wizard or a tech enthusiast, HogwartsEdx offers a comprehensive range of courses in data science, artificial intelligence, software development, cybersecurity, and more. Join our community to experience interactive lessons, immersive virtual classrooms, and hands-on projects that bring learning to life. Sign in now to start your journey with HogwartsEdx and unlock the magic of advanced technology and education!" />
+ <meta name="twitter:title" content="ConnectNow | Seamless Video Chat & Instant Messaging" />
+ <meta name="twitter:description" content="ConnectNow is a secure and user-friendly platform for seamless video calls and real-time messaging. Enjoy high-quality video chat, instant messaging, and file sharing—all in one place." />
  <meta name="twitter:image" content="https://sanjaybasket.s3.ap-south-1.amazonaws.com/HogwartsEdX/hogwartscertify.png" />
  <meta name="twitter:site" content="@sanjaypatidar" />
  <meta name="twitter:creator" content="@sanjaypatidar" />
 
- <meta name="keywords" content="portfolio,verification , certificate verify , certfication verification, signup , eduxcel ,founder: Sanjay patidar , tech, education, careers, opportunity, personal-portfolio,developer_sanju,sanjay, Sanjay, SANJAY, Sanjay Patidar, SANJAY PATIDAR, SANJAY WEB DEVELOPER, SANJAY DEVELOPER, Full Stack Web Developer, Mern Stack Web Developer, sanjay patidar, sanjay-patidar, professional, web developer portfolio, coder, web development, UI/UX design, Chandigarh University, EduXcel, Indore,contact, developer, programmer, engineer, AI, Artificial Intelligence ,tech enthusiastic, creativity ,creator, work , technology, coding, projects, experiences, resume, cv" />
+ <meta name="keywords" content="ConnectNow,verification , certificate verify , certfication verification, signup , eduxcel ,founder: Sanjay patidar , tech, education, careers, opportunity, personal-portfolio,developer_sanju,sanjay, Sanjay, SANJAY, Sanjay Patidar, SANJAY PATIDAR, SANJAY WEB DEVELOPER, SANJAY DEVELOPER, Full Stack Web Developer, Mern Stack Web Developer, sanjay patidar, sanjay-patidar, professional, web developer portfolio, coder, web development, UI/UX design, Chandigarh University, EduXcel, Indore,contact, developer, programmer, engineer, AI, Artificial Intelligence ,tech enthusiastic, creativity ,creator, work , technology, coding, projects, experiences, resume, cv" />
  <meta name="author" content="Sanjay Patidar" />        <script type="application/ld+json">
        {JSON.stringify({
          '@context': 'http://schema.org',
@@ -296,16 +296,16 @@ Welcome to EventEase - the premier online learning platform inspired by the magi
          ],
          "worksFor": {
            "@type": "Organization",
-           "name": "HogwartsEdX" 
+           "name": "ConnectNow" 
          },
-         "url": "https://HogwartsEdX.vercel.app/",
+         "url": "https://connectnow.vercel.app/",
          "sameAs": [
            "https://www.linkedin.com/in/sanjay-patidar-25b580292/",
            "https://github.com/hello-developer-sanjay",
            "https://www.instagram.com/sanjay_patidar_mcmxcviii/",
-           "https://HogwartsEdX.vercel.app/",
-                      "https://HogwartsEdX.vercel.app/login",
-                      "https://HogwartsEdX.vercel.app/certificate-verification",
+           "https://connectnow.vercel.app/",
+                      "https://connectnow.vercel.app/login",
+                      
            
 
 
@@ -321,7 +321,7 @@ Welcome to EventEase - the premier online learning platform inspired by the magi
       <AuthBox className={`auth-box ${isSignUp ? 'register' : 'login'}`}>
       
         <FormContainer>
-          <Title>{isSignUp ? 'Sign Up - EventEase' : 'Sign In - EventEase'}</Title>
+          <Title>{isSignUp ? 'Sign Up - ConnectNow' : 'Sign In - ConnectNow'}</Title>
           <div>{isSignUp ? <Register /> : <Login />}</div>
           <ToggleFormText onClick={toggleForm}>
             {isSignUp
