@@ -131,7 +131,7 @@ const FileInput = styled.input`
 const Chat = () => {
   const [socket, setSocket] = useState(null);
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(new MediaStream()); // Initialize as empty stream
   const [peerConnection, setPeerConnection] = useState(null);
   const [callStatus, setCallStatus] = useState("");
   const [incomingCall, setIncomingCall] = useState(false);
@@ -291,12 +291,12 @@ const Chat = () => {
 
     pc.ontrack = (event) => {
       console.log("Received remote track:", event.track.kind, "enabled:", event.track.enabled);
-      const newRemoteStream = remoteStream || new MediaStream();
-      if (!newRemoteStream.getTracks().find((t) => t.id === event.track.id)) {
-        event.track.enabled = true; // Ensure track is enabled
-        newRemoteStream.addTrack(event.track);
-        setRemoteStream(newRemoteStream);
-        console.log("Remote stream tracks:", newRemoteStream.getTracks());
+      event.track.enabled = true; // Ensure track is enabled
+      const existingTracks = remoteStream.getTracks();
+      if (!existingTracks.find((t) => t.id === event.track.id)) {
+        remoteStream.addTrack(event.track);
+        setRemoteStream(new MediaStream(remoteStream.getTracks())); // Trigger re-render with updated stream
+        console.log("Updated remote stream tracks:", remoteStream.getTracks());
       }
     };
 
@@ -368,7 +368,7 @@ const Chat = () => {
     }
     socket.emit("endCall", { to: incomingCallUser || callStatus.split(" ")[2] });
     setCallStatus("");
-    setRemoteStream(null);
+    setRemoteStream(new MediaStream()); // Reset to empty stream
     setIncomingCall(false);
   };
 
