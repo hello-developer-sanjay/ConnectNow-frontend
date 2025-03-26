@@ -158,7 +158,7 @@ const Chat = () => {
 
   // Setup socket connection
   useEffect(() => {
-    const newSocket = io("https://connectnow-backend-24july.onrender.com", {
+    const newSocket = io("https://connectnow-api-26march.onrender.com", {
       transports: ["websocket"],
       reconnectionAttempts: 5,
     });
