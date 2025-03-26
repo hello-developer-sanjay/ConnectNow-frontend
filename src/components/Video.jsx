@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 export default function Video({ localStream, remoteStream }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const hasSetRemoteStream = useRef(false);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -13,10 +14,13 @@ export default function Video({ localStream, remoteStream }) {
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      console.log("Remote stream set in video element:", remoteStream.getTracks());
-      // Only call play() if not already playing
-      if (remoteVideoRef.current.paused) {
+      // Only set srcObject once or if tracks change significantly
+      if (!hasSetRemoteStream.current || remoteStream.getTracks().length > remoteVideoRef.current.srcObject?.getTracks().length) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        hasSetRemoteStream.current = true;
+        console.log("Remote stream set in video element:", remoteStream.getTracks());
+      }
+      if (remoteVideoRef.current.paused && remoteStream.getTracks().length > 0) {
         remoteVideoRef.current
           .play()
           .catch((e) => console.error("Error playing remote video:", e));
