@@ -23,7 +23,7 @@ export const register = (name, email, password) => async (dispatch) => {
         };
 
         console.log('Sending register request to the server');
-        const { data } = await axios.post('https://connectnow-backend-24july.onrender.com/api/users/register', { name, email, password }, config);
+        const { data } = await axios.post('https://connectnow-api-26march.onrender.com/api/users/register', { name, email, password }, config);
 
         console.log('Register request successful:', data);
         dispatch({ type: USER_REGISTER_SUCCESS, payload: data });
@@ -54,7 +54,7 @@ export const login = (email, password) => async (dispatch) => {
         };
 
         console.log('Sending login request to the server');
-        const { data } = await axios.post('https://connectnow-backend-24july.onrender.com/api/users/login', { email, password }, config);
+        const { data } = await axios.post('https://connectnow-api-26march.onrender.com/api/users/login', { email, password }, config);
 
         console.log('Login request successful:', data);
         dispatch({ type: USER_LOGIN_SUCCESS, payload: data });
@@ -89,7 +89,7 @@ export const listUsers = () => async (dispatch, getState) => {
         };
 
         console.log('Sending request to get the list of users');
-        const { data } = await axios.get('https://connectnow-backend-24july.onrender.com/api/users', config);
+        const { data } = await axios.get('https://connectnow-api-26march.onrender.com/api/users', config);
 
         console.log('List users request successful:', data);
         dispatch({ type: USER_LIST_SUCCESS, payload: data });
