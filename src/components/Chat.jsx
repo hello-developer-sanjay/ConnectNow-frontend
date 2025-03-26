@@ -174,13 +174,13 @@ const Chat = () => {
 
     newSocket.on("connect_error", (err) => {
       console.error("WebSocket connection error:", err);
-      toast.error("WebSocket connection failed! Please try again later.");
+      toast.error("WebSocket connection failed!");
     });
 
     return () => newSocket.close();
   }, [userInfo]);
 
-  // Get local media stream with enhanced audio constraints
+  // Get local media stream
   useEffect(() => {
     const initLocalStream = async () => {
       try {
@@ -190,10 +190,10 @@ const Chat = () => {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
-            sampleRate: 48000, // Higher sample rate for better quality
           },
         });
         setLocalStream(stream);
+        console.log("Local stream initialized with audio and video");
       } catch (error) {
         console.error("Error accessing media devices:", error);
         toast.error("Error accessing media devices.");
@@ -204,10 +204,10 @@ const Chat = () => {
 
   // Listen for signaling events
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !userInfo) return;
 
     const handleVideoOffer = async ({ offer, caller, userToCall }) => {
-      if (userToCall !== userInfo?.name) return;
+      if (userToCall !== userInfo.name) return;
       setIncomingCall(true);
       setIncomingCallUser(caller);
       setOffer(offer);
@@ -216,30 +216,34 @@ const Chat = () => {
     };
 
     const handleVideoAnswer = async ({ answer, caller }) => {
-      if (peerConnection && peerConnection.signalingState === "have-local-offer") {
+      if (peerConnection && caller === userInfo.name) {
         try {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-          setCallStatus(`In call with ${caller}`);
+          setCallStatus(`In call with ${incomingCallUser || "remote user"}`);
+          console.log("Remote description set for answer");
         } catch (error) {
           console.error("Error setting remote description:", error);
-          toast.error("Error accepting call.");
         }
       }
     };
 
-    const handleNewIceCandidate = async ({ candidate }) => {
+    const handleNewIceCandidate = async ({ candidate, from, to }) => {
+      if (to !== userInfo.name) return;
       if (peerConnection && candidate) {
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log("ICE candidate added from:", from);
         } catch (error) {
           console.error("Error adding ICE candidate:", error);
         }
       }
     };
 
-    const handleCallEnded = () => {
-      handleCallEnd();
-      toast.info("Call ended by remote user.");
+    const handleCallEnded = ({ to }) => {
+      if (to === userInfo.name) {
+        handleCallEnd();
+        toast.info("Call ended by remote user.");
+      }
     };
 
     const handleUserDisconnected = ({ user }) => {
@@ -272,10 +276,10 @@ const Chat = () => {
       socket.off("message");
       socket.off("file");
     };
-  }, [socket, peerConnection, userInfo]);
+  }, [socket, peerConnection, userInfo, incomingCallUser]);
 
   // Create RTCPeerConnection
-  const createPeerConnection = () => {
+  const createPeerConnection = (remoteUser) => {
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -285,11 +289,13 @@ const Chat = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("newIceCandidate", { candidate: event.candidate });
+        socket.emit("newIceCandidate", { candidate: event.candidate, to: remoteUser });
+        console.log("Sent ICE candidate to:", remoteUser);
       }
     };
 
     pc.ontrack = (event) => {
+      console.log("Received remote track:", event.track.kind);
       const newRemoteStream = remoteStream || new MediaStream();
       if (!newRemoteStream.getTracks().find((t) => t.id === event.track.id)) {
         newRemoteStream.addTrack(event.track);
@@ -298,13 +304,17 @@ const Chat = () => {
     };
 
     pc.oniceconnectionstatechange = () => {
+      console.log("ICE connection state:", pc.iceConnectionState);
       if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
         handleCallEnd();
       }
     };
 
     if (localStream) {
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+      localStream.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream);
+        console.log("Added track to peer connection:", track.kind);
+      });
     }
 
     return pc;
@@ -312,14 +322,18 @@ const Chat = () => {
 
   // Initiate a call
   const handleCallUser = async (userToCall) => {
-    const pc = createPeerConnection();
+    const pc = createPeerConnection(userToCall);
     setPeerConnection(pc);
     setCallStatus(`Calling ${userToCall}...`);
 
     try {
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
       await pc.setLocalDescription(offer);
       socket.emit("videoOffer", { offer, caller: userInfo.name, userToCall });
+      console.log("Offer sent to:", userToCall);
     } catch (error) {
       console.error("Error creating offer:", error);
       toast.error("Failed to initiate call.");
@@ -328,7 +342,7 @@ const Chat = () => {
 
   // Accept an incoming call
   const handleAcceptCall = async () => {
-    const pc = createPeerConnection();
+    const pc = createPeerConnection(incomingCallUser);
     setPeerConnection(pc);
 
     try {
@@ -338,6 +352,7 @@ const Chat = () => {
       socket.emit("videoAnswer", { answer, caller: incomingCallUser });
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
+      console.log("Answer sent to:", incomingCallUser);
     } catch (error) {
       console.error("Error accepting call:", error);
       toast.error("Failed to accept call.");
