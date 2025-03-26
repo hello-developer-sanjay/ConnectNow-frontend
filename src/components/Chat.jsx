@@ -150,13 +150,11 @@ const Chat = () => {
   const userLogin = useSelector((state) => state.userLogin);
   const { userInfo } = userLogin;
 
-  // Load the user list
   useEffect(() => {
     setLoading(true);
     dispatch(listUsers()).finally(() => setLoading(false));
   }, [dispatch]);
 
-  // Setup socket connection
   useEffect(() => {
     const newSocket = io("https://connectnow-api-26march.onrender.com", {
       transports: ["websocket"],
@@ -180,7 +178,6 @@ const Chat = () => {
     return () => newSocket.close();
   }, [userInfo]);
 
-  // Get local media stream
   useEffect(() => {
     const initLocalStream = async () => {
       try {
@@ -193,7 +190,7 @@ const Chat = () => {
           },
         });
         setLocalStream(stream);
-        console.log("Local stream initialized with audio and video");
+        console.log("Local stream initialized:", stream.getTracks());
       } catch (error) {
         console.error("Error accessing media devices:", error);
         toast.error("Error accessing media devices.");
@@ -202,7 +199,6 @@ const Chat = () => {
     initLocalStream();
   }, []);
 
-  // Listen for signaling events
   useEffect(() => {
     if (!socket || !userInfo) return;
 
@@ -220,7 +216,7 @@ const Chat = () => {
         try {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
           setCallStatus(`In call with ${incomingCallUser || "remote user"}`);
-          console.log("Remote description set for answer");
+          console.log("Remote description set for answer:", answer);
         } catch (error) {
           console.error("Error setting remote description:", error);
         }
@@ -278,7 +274,6 @@ const Chat = () => {
     };
   }, [socket, peerConnection, userInfo, incomingCallUser]);
 
-  // Create RTCPeerConnection
   const createPeerConnection = (remoteUser) => {
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -295,11 +290,13 @@ const Chat = () => {
     };
 
     pc.ontrack = (event) => {
-      console.log("Received remote track:", event.track.kind);
+      console.log("Received remote track:", event.track.kind, "enabled:", event.track.enabled);
       const newRemoteStream = remoteStream || new MediaStream();
       if (!newRemoteStream.getTracks().find((t) => t.id === event.track.id)) {
+        event.track.enabled = true; // Ensure track is enabled
         newRemoteStream.addTrack(event.track);
         setRemoteStream(newRemoteStream);
+        console.log("Remote stream tracks:", newRemoteStream.getTracks());
       }
     };
 
@@ -312,15 +309,15 @@ const Chat = () => {
 
     if (localStream) {
       localStream.getTracks().forEach((track) => {
+        track.enabled = true; // Ensure local track is enabled
         pc.addTrack(track, localStream);
-        console.log("Added track to peer connection:", track.kind);
+        console.log("Added track to peer connection:", track.kind, "enabled:", track.enabled);
       });
     }
 
     return pc;
   };
 
-  // Initiate a call
   const handleCallUser = async (userToCall) => {
     const pc = createPeerConnection(userToCall);
     setPeerConnection(pc);
@@ -333,14 +330,13 @@ const Chat = () => {
       });
       await pc.setLocalDescription(offer);
       socket.emit("videoOffer", { offer, caller: userInfo.name, userToCall });
-      console.log("Offer sent to:", userToCall);
+      console.log("Offer sent to:", userToCall, "with audio:", offer.sdp.includes("m=audio"));
     } catch (error) {
       console.error("Error creating offer:", error);
       toast.error("Failed to initiate call.");
     }
   };
 
-  // Accept an incoming call
   const handleAcceptCall = async () => {
     const pc = createPeerConnection(incomingCallUser);
     setPeerConnection(pc);
@@ -352,7 +348,7 @@ const Chat = () => {
       socket.emit("videoAnswer", { answer, caller: incomingCallUser });
       setCallStatus(`In call with ${incomingCallUser}`);
       setIncomingCall(false);
-      console.log("Answer sent to:", incomingCallUser);
+      console.log("Answer sent to:", incomingCallUser, "with audio:", answer.sdp.includes("m=audio"));
     } catch (error) {
       console.error("Error accepting call:", error);
       toast.error("Failed to accept call.");
