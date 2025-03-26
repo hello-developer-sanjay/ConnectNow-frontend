@@ -23,7 +23,7 @@ export default function Video({ localStream, remoteStream }) {
         <video
           ref={localVideoRef}
           autoPlay
-          muted // Mute local video to prevent echo
+          muted
           playsInline
           style={{ width: "300px", border: "2px solid green" }}
         />
