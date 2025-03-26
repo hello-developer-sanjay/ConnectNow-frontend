@@ -14,8 +14,7 @@ export default function Video({ localStream, remoteStream }) {
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
-      // Only set srcObject once or if tracks change significantly
-      if (!hasSetRemoteStream.current || remoteStream.getTracks().length > remoteVideoRef.current.srcObject?.getTracks().length) {
+      if (!hasSetRemoteStream.current || remoteStream.getTracks().length > (remoteVideoRef.current.srcObject?.getTracks().length || 0)) {
         remoteVideoRef.current.srcObject = remoteStream;
         hasSetRemoteStream.current = true;
         console.log("Remote stream set in video element:", remoteStream.getTracks());
