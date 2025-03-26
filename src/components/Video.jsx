@@ -7,14 +7,15 @@ export default function Video({ localStream, remoteStream }) {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
-      console.log("Local stream set in video element");
+      console.log("Local stream set in video element:", localStream.getTracks());
     }
   }, [localStream]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
-      console.log("Remote stream set in video element");
+      remoteVideoRef.current.play().catch((e) => console.error("Error playing remote video:", e));
+      console.log("Remote stream set in video element:", remoteStream.getTracks());
     }
   }, [remoteStream]);
 
