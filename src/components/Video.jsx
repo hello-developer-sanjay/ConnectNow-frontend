@@ -4,14 +4,12 @@ export default function Video({ localStream, remoteStream }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-  // Attach the local stream to the local video element
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
-  // Attach the remote stream (with audio & video) to the remote video element
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
@@ -25,7 +23,7 @@ export default function Video({ localStream, remoteStream }) {
         <video
           ref={localVideoRef}
           autoPlay
-          muted
+          muted // Mute local video to prevent echo
           playsInline
           style={{ width: "300px", border: "2px solid green" }}
         />
