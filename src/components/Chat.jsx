@@ -318,42 +318,44 @@ const Chat = () => {
   };
 
   const handleCallUser = async (userToCall) => {
-    const pc = createPeerConnection(userToCall);
-    setPeerConnection(pc);
-    setCallStatus(`Calling ${userToCall}...`);
+  const pc = createPeerConnection(userToCall);
+  setPeerConnection(pc);
+  setCallStatus(`Calling ${userToCall}...`);
 
-    try {
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-      });
-      await pc.setLocalDescription(offer);
-      socket.emit("videoOffer", { offer, caller: userInfo.name, userToCall });
-      console.log("Offer sent to:", userToCall, "with audio:", offer.sdp.includes("m=audio"));
-    } catch (error) {
-      console.error("Error creating offer:", error);
-      toast.error("Failed to initiate call.");
-    }
-  };
-
+  try {
+    const offer = await pc.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true,
+    });
+    await pc.setLocalDescription(offer);
+    // Log senders to verify tracks being sent
+    console.log("Senders:", pc.getSenders().map(s => ({ kind: s.track?.kind, enabled: s.track?.enabled })));
+    socket.emit("videoOffer", { offer, caller: userInfo.name, userToCall });
+    console.log("Offer sent to:", userToCall, "with audio:", offer.sdp.includes("m=audio"));
+  } catch (error) {
+    console.error("Error creating offer:", error);
+    toast.error("Failed to initiate call.");
+  }
+};
   const handleAcceptCall = async () => {
-    const pc = createPeerConnection(incomingCallUser);
-    setPeerConnection(pc);
+  const pc = createPeerConnection(incomingCallUser);
+  setPeerConnection(pc);
 
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("videoAnswer", { answer, caller: incomingCallUser });
-      setCallStatus(`In call with ${incomingCallUser}`);
-      setIncomingCall(false);
-      console.log("Answer sent to:", incomingCallUser, "with audio:", answer.sdp.includes("m=audio"));
-    } catch (error) {
-      console.error("Error accepting call:", error);
-      toast.error("Failed to accept call.");
-    }
-  };
-
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    // Log senders to verify tracks being sent
+    console.log("Senders:", pc.getSenders().map(s => ({ kind: s.track?.kind, enabled: s.track?.enabled })));
+    socket.emit("videoAnswer", { answer, caller: incomingCallUser });
+    setCallStatus(`In call with ${incomingCallUser}`);
+    setIncomingCall(false);
+    console.log("Answer sent to:", incomingCallUser, "with audio:", answer.sdp.includes("m=audio"));
+  } catch (error) {
+    console.error("Error accepting call:", error);
+    toast.error("Failed to accept call.");
+  }
+};
   const handleRejectCall = () => {
     socket.emit("rejectCall", { caller: incomingCallUser });
     setIncomingCall(false);
